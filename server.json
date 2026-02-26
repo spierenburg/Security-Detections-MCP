@@ -1,0 +1,45 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mhaggis/security-detections-mcp",
+  "description": "Aggregates security detection rules from Sigma, Splunk ESCU, Elastic, and KQL into a unified searchable SQLite database with MITRE ATT&CK mappings, CVE tracking, coverage analysis, and detection engineering intelligence for security analysts and threat hunters.",
+  "title": "Security Detections",
+  "repository": {
+    "url": "https://github.com/MHaggis/Security-Detections-MCP",
+    "source": "github"
+  },
+  "version": "2.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "security-detections-mcp",
+      "version": "2.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SIGMA_PATHS",
+          "description": "Comma-separated paths to Sigma rule directories (e.g., /path/to/sigma/rules,/path/to/sigma/rules-threat-hunting)"
+        },
+        {
+          "name": "SPLUNK_PATHS",
+          "description": "Comma-separated paths to Splunk ESCU detection directories (e.g., /path/to/security_content/detections)"
+        },
+        {
+          "name": "ELASTIC_PATHS",
+          "description": "Comma-separated paths to Elastic detection rule directories (e.g., /path/to/detection-rules/rules)"
+        },
+        {
+          "name": "KQL_PATHS",
+          "description": "Comma-separated paths to KQL hunting query directories (e.g., /path/to/kql-queries)"
+        },
+        {
+          "name": "STORY_PATHS",
+          "description": "Comma-separated paths to Splunk analytic story directories (optional, e.g., /path/to/security_content/stories)"
+        }
+      ]
+    }
+  ]
+}
