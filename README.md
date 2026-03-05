@@ -2,7 +2,98 @@
 
 An MCP (Model Context Protocol) server that lets LLMs query a unified database of **Sigma**, **Splunk ESCU**, **Elastic**, and **KQL** security detection rules.
 
+> **New here? Start with the [Setup Guide](./SETUP.md)** -- covers macOS, Windows (WSL & native), and Linux step by step.
+
+## What's New in 3.0 - Autonomous Detection Platform
+
+Version 3.0 transforms this MCP into a **fully autonomous detection engineering platform**. Feed it threat intelligence, and it automatically:
+
+1. **Extracts TTPs** from threat reports, CISA alerts, or manual input
+2. **Analyzes coverage gaps** against your existing detections
+3. **Generates detections** in your SIEM's native format (SPL, KQL, EQL, or Sigma)
+4. **Runs Atomic Red Team tests** against your lab environment
+5. **Validates detections fire** by querying your SIEM
+6. **Exports attack data** for reproducibility
+7. **Stages DRAFT PRs** to your detection repo (never auto-merges)
+
+> **Multi-SIEM**: Set `SIEM_PLATFORM` to `splunk`, `sentinel`, `elastic`, or `sigma` in your `.env`. The pipeline was built on Splunk + Attack Range but adapts to any SIEM. See the **[E2E Testing Guide](./docs/E2E-TESTING-GUIDE.md)** for complete setup instructions per platform.
+
+### Architecture: LangGraph + Cursor Subagents
+
+The 3.0 architecture uses two complementary systems:
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **LangGraph Pipeline** | Core autonomous workflow - portable, testable, CI/CD ready | `agents/` |
+| **Cursor Subagents** | Interactive IDE agents for manual tasks | `.cursor/agents/` |
+
+### Quick Start - Autonomous Mode
+
+**Prerequisites**: Node.js 20+, an Anthropic API key. Full details in the [Setup Guide](./SETUP.md).
+
+```bash
+# Install the agents package
+cd agents && npm install --registry https://registry.npmjs.org/
+
+# Configure
+cp .env.example .env
+# Edit .env: set SIEM_PLATFORM, ANTHROPIC_API_KEY, SECURITY_CONTENT_PATH
+
+# Test with dry run first (uses mock data, no LLM calls)
+DRY_RUN=true npm run orchestrate -- --type technique --input "T1566.004 Spearphishing Voice"
+
+# Run with real LLM (creates actual detections)
+npm run orchestrate -- --type technique --input "T1566.004 Spearphishing Voice"
+
+# Or analyze a CISA alert
+npm run orchestrate -- --type cisa_alert --url https://www.cisa.gov/news-events/alerts/...
+
+# Or feed it a threat report
+npm run orchestrate -- --type threat_report --file ./report.md
+
+# Note: Use T1566.004 for testing - it has no existing coverage so will create a detection
+# T1003.001 has 100+ existing detections, so the pipeline will correctly skip it (no gap)
+```
+
+### Pipeline Stages
+
+```
+┌─────────────┐    ┌──────────────────┐    ┌────────────────────┐
+│ CTI Analyst │───>│ Coverage Analyzer│───>│ Detection Engineer │
+└─────────────┘    └──────────────────┘    └────────────────────┘
+                                                     │
+                                                     ▼
+┌───────────┐    ┌──────────────────┐    ┌──────────────────────┐
+│ PR Stager │<───│   Data Dumper    │<───│  Splunk Validator    │
+└───────────┘    └──────────────────┘    └──────────────────────┘
+                                                     ▲
+                                                     │
+                                          ┌──────────────────┐
+                                          │ Atomic Executor  │
+                                          └──────────────────┘
+```
+
+### MCP Integration
+
+The autonomous pipeline integrates with existing MCPs:
+- **security-detections** - Coverage analysis and gap identification
+- **splunk-mcp** - Detection validation (`run_detection`, `export_dump`)
+- **mitre-attack** - Technique lookups
+
+### Human-in-the-Loop
+
+**CRITICAL**: The system NEVER auto-commits or auto-merges. All PRs are created as **DRAFT** requiring human review:
+
+```
+[PR Stager] ✓ security_content DRAFT PR created: https://github.com/splunk/security_content/pull/123
+[PR Stager] ✓ attack_data DRAFT PR created: https://github.com/splunk/attack_data/pull/456
+```
+
+See the [Autonomous Platform Documentation](./docs/AUTONOMOUS.md) for full details, and the [E2E Testing Guide](./docs/E2E-TESTING-GUIDE.md) for per-SIEM setup (Splunk, Sentinel, Elastic, Sigma).
+
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=security-detections&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNlY3VyaXR5LWRldGVjdGlvbnMtbWNwIl0sImVudiI6eyJTSUdNQV9QQVRIUyI6Ii9wYXRoL3RvL3NpZ21hL3J1bGVzLC9wYXRoL3RvL3NpZ21hL3J1bGVzLXRocmVhdC1odW50aW5nIiwiU1BMVU5LX1BBVEhTIjoiL3BhdGgvdG8vc2VjdXJpdHlfY29udGVudC9kZXRlY3Rpb25zIiwiU1RPUllfUEFUSFMiOiIvcGF0aC90by9zZWN1cml0eV9jb250ZW50L3N0b3JpZXMiLCJFTEFTVElDX1BBVEhTIjoiL3BhdGgvdG8vZGV0ZWN0aW9uLXJ1bGVzL3J1bGVzIiwiS1FMX1BBVEhTIjoiL3BhdGgvdG8va3FsLXJ1bGVzIn19)
+
+> **Detailed setup**: See the **[Setup Guide](./SETUP.md)** for step-by-step install on macOS, Windows (WSL & native), and Linux with troubleshooting for common issues.
 
 ## 🐛 Version 2.1.1 (Bug Fix)
 

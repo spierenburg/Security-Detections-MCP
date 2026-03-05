@@ -1,0 +1,150 @@
+name: Agents CLI - Smoke Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'agents/**'
+      - '.github/workflows/agents-cli.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'agents/**'
+      - '.github/workflows/agents-cli.yml'
+
+defaults:
+  run:
+    working-directory: agents
+
+jobs:
+  typecheck:
+    name: TypeScript Compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: npm install --registry https://registry.npmjs.org/
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Verify dist output
+        run: test -f dist/src/cli.js && test -f dist/graphs/detection-pipeline.js
+
+  cli-smoke:
+    name: CLI Smoke Tests (${{ matrix.test }})
+    needs: typecheck
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # -- help flags --
+          - test: orchestrate --help
+            cmd: npx tsx src/cli.ts orchestrate --help
+            expect: '--input'
+          - test: analyze --help
+            cmd: npx tsx src/cli.ts analyze --help
+            expect: '--technique'
+          - test: validate --help
+            cmd: npx tsx src/cli.ts validate --help
+            expect: '--detection'
+
+          # -- orchestrate input methods --
+          - test: orchestrate --input
+            cmd: npx tsx src/cli.ts orchestrate --type technique --input "T1566.004 Spearphishing Voice"
+            expect: '"techniques"'
+          - test: orchestrate --content (alias)
+            cmd: npx tsx src/cli.ts orchestrate --type technique --content "T1566.004 Spearphishing Voice"
+            expect: '"techniques"'
+          - test: orchestrate --file
+            cmd: bash -c 'echo "T1566.004 Spearphishing Voice" > /tmp/report.md && npx tsx src/cli.ts orchestrate --type threat_report --file /tmp/report.md'
+            expect: '"techniques"'
+
+          # -- orchestrate --type values --
+          - test: orchestrate --type technique
+            cmd: npx tsx src/cli.ts orchestrate --type technique --input "T1059.001 PowerShell"
+            expect: '"input_type": "technique"'
+          - test: orchestrate --type manual
+            cmd: npx tsx src/cli.ts orchestrate --type manual --input "PowerShell encoded commands"
+            expect: '"input_type": "manual"'
+          - test: orchestrate --type threat_report
+            cmd: npx tsx src/cli.ts orchestrate --type threat_report --input "Actor uses PsExec T1021.002"
+            expect: '"input_type": "threat_report"'
+
+          # -- coverage-aware behavior --
+          - test: T1566.004 has gap → creates detection
+            cmd: npx tsx src/cli.ts orchestrate --type technique --input "T1566.004 Spearphishing Voice"
+            expect: 'Gaps identified: 1'
+          - test: T1003.001 no gap → ends early
+            cmd: npx tsx src/cli.ts orchestrate --type technique --input "T1003.001 LSASS Memory"
+            expect: 'Gaps identified: 0'
+
+          # -- analyze command --
+          - test: analyze --technique
+            cmd: npx tsx src/cli.ts analyze --technique T1003.001
+            expect: 'Analysis Complete'
+          - test: analyze --input
+            cmd: npx tsx src/cli.ts analyze --input "T1566.004 Spearphishing Voice"
+            expect: 'Analysis Complete'
+
+          # -- validate command --
+          - test: validate --technique (dry run)
+            cmd: npx tsx src/cli.ts validate --technique T1003.001
+            expect: 'Validate Mode'
+
+          # -- status command --
+          - test: status
+            cmd: npx tsx src/cli.ts status
+            expect: 'Pipeline Status'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: npm install --registry https://registry.npmjs.org/
+      - name: '${{ matrix.test }}'
+        run: |
+          OUTPUT=$(${{ matrix.cmd }} 2>&1) || true
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q '${{ matrix.expect }}'
+
+  cli-error-handling:
+    name: CLI Error Handling
+    needs: typecheck
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: npm install --registry https://registry.npmjs.org/
+
+      - name: 'orchestrate with no input exits non-zero'
+        run: |
+          set +e
+          npx tsx src/cli.ts orchestrate --type technique 2>&1
+          EXIT_CODE=$?
+          set -e
+          test $EXIT_CODE -ne 0
+
+      - name: 'orchestrate with missing file exits non-zero'
+        run: |
+          set +e
+          npx tsx src/cli.ts orchestrate --type threat_report --file ./does-not-exist.md 2>&1
+          EXIT_CODE=$?
+          set -e
+          test $EXIT_CODE -ne 0
+
+      - name: 'validate with no args exits non-zero'
+        run: |
+          set +e
+          npx tsx src/cli.ts validate 2>&1
+          EXIT_CODE=$?
+          set -e
+          test $EXIT_CODE -ne 0

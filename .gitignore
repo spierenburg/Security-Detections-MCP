@@ -28,3 +28,13 @@ results.sqlite
 *.tgz
 .npm/
 /reports
+
+# Agents
+agents/.env
+agents/dist/
+agents/node_modules/
+agents/security_content/
+agents/attack_data/
+agents/attack_range/
+agents/detection-pipeline-result.json
+agents/TESTING.md
