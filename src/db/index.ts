@@ -85,6 +85,10 @@ export {
   suggestDetections,
   generateNavigatorLayer,
   
+  // Procedure Extraction
+  autoExtractProcedures,
+  extractAllProcedures,
+
   // Lightweight Lists
   searchDetectionList,
   listDetectionsBySourceLight,

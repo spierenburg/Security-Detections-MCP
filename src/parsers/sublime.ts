@@ -18,6 +18,47 @@ const TACTICS_MAP: Record<string, string> = {
   'encryption': 'defense-evasion',
 };
 
+// Map Sublime attack_types and tactics_and_techniques to MITRE technique IDs
+const ATTACK_TYPE_TO_MITRE: Record<string, string[]> = {
+  'credential phishing': ['T1566', 'T1566.001', 'T1566.002', 'T1598'],
+  'bec/fraud': ['T1566.002', 'T1534', 'T1656'],
+  'malware/ransomware': ['T1566.001', 'T1204.002', 'T1486'],
+  'spam': ['T1566'],
+  'callback phishing': ['T1566.003', 'T1598'],
+  'extortion': ['T1486', 'T1657'],
+};
+
+const TACTIC_TO_MITRE: Record<string, string[]> = {
+  'social engineering': ['T1566', 'T1598'],
+  'impersonation: brand': ['T1566.002', 'T1598.003'],
+  'impersonation: employee': ['T1566.002', 'T1534'],
+  'impersonation: vip': ['T1566.002', 'T1534'],
+  'spoofing': ['T1566', 'T1598'],
+  'lookalike domain': ['T1583.001', 'T1566.002'],
+  'exploit': ['T1190', 'T1203'],
+  'macros': ['T1204.002', 'T1059.005'],
+  'scripting': ['T1059'],
+  'evasion': ['T1036', 'T1027'],
+  'encryption': ['T1027', 'T1573'],
+};
+
+function extractMitreIds(attackTypes: string[] | undefined, tactics: string[] | undefined): string[] {
+  const ids = new Set<string>();
+  if (attackTypes) {
+    for (const at of attackTypes) {
+      const mapped = ATTACK_TYPE_TO_MITRE[at.toLowerCase()];
+      if (mapped) mapped.forEach(id => ids.add(id));
+    }
+  }
+  if (tactics) {
+    for (const t of tactics) {
+      const mapped = TACTIC_TO_MITRE[t.toLowerCase()];
+      if (mapped) mapped.forEach(id => ids.add(id));
+    }
+  }
+  return [...ids];
+}
+
 // Generate a stable ID from file path and rule name
 function generateId(filePath: string, name: string): string {
   const hash = createHash('sha256')
@@ -72,7 +113,7 @@ export function parseSublimeFile(filePath: string): Detection | null {
       description: rule.description || '',
       query: rule.source,
       source_type: 'sublime',
-      mitre_ids: [],
+      mitre_ids: extractMitreIds(rule.attack_types, rule.tactics_and_techniques),
       logsource_category: 'email',
       logsource_product: 'email',
       logsource_service: null,

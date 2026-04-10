@@ -13,9 +13,10 @@
 
 import { createServer, startServer } from './server.js';
 import { registerAllTools, getToolsSummary } from './tools/index.js';
-import { initDb } from './db/connection.js';
+import { initDb, closeDb } from './db/connection.js';
 import { indexDetections, needsIndexing } from './indexer.js';
 import { initPatternsSchema, getPatternStats } from './db/patterns.js';
+import { extractAllProcedures } from './db/detections.js';
 
 // Parse comma-separated paths from env var
 function parsePaths(envVar: string | undefined): string[] {
@@ -49,16 +50,25 @@ function autoIndex(): void {
       msg += `, ${result.stories_indexed} stories`;
     }
     console.error(msg);
+
+    // Re-initialize connection after indexer's recreateDb
+    closeDb();
+    initDb();
+
+    // Auto-extract procedure reference data from indexed detections
+    console.error('[security-detections-mcp] Extracting procedure-level coverage data...');
+    const procResult = extractAllProcedures();
+    console.error(`[security-detections-mcp] Procedures: ${procResult.procedures_generated} procedures across ${procResult.techniques_processed} techniques`);
   }
 }
 
 async function main() {
   // Initialize database
   initDb();
-  
+
   // Auto-index if configured
   autoIndex();
-  
+
   // Initialize patterns schema (Detection Engineering Intelligence)
   initPatternsSchema();
   const patternStats = getPatternStats();

@@ -6,10 +6,41 @@ An MCP (Model Context Protocol) server that lets LLMs query a unified database o
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=security-detections&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNlY3VyaXR5LWRldGVjdGlvbnMtbWNwIl0sImVudiI6eyJTSUdNQV9QQVRIUyI6Ii9wYXRoL3RvL3NpZ21hL3J1bGVzLC9wYXRoL3RvL3NpZ21hL3J1bGVzLXRocmVhdC1odW50aW5nIiwiU1BMVU5LX1BBVEhTIjoiL3BhdGgvdG8vc2VjdXJpdHlfY29udGVudC9kZXRlY3Rpb25zIiwiU1RPUllfUEFUSFMiOiIvcGF0aC90by9zZWN1cml0eV9jb250ZW50L3N0b3JpZXMiLCJFTEFTVElDX1BBVEhTIjoiL3BhdGgvdG8vZGV0ZWN0aW9uLXJ1bGVzL3J1bGVzIiwiS1FMX1BBVEhTIjoiL3BhdGgvdG8va3FsLXJ1bGVzIiwiU1VCTElNRV9QQVRIUyI6Ii9wYXRoL3RvL3N1YmxpbWUtcnVsZXMvZGV0ZWN0aW9uLXJ1bGVzIiwiQ1FMX0hVQl9QQVRIUyI6Ii9wYXRoL3RvL2NxbC1odWIvcXVlcmllcyJ9fQ==)
 
-## What's New in 3.1 - New Detection Sources
+## What's New in 3.2 - Procedure-Level Coverage Analysis
+
+### Procedure-Level Coverage Analysis
+
+Go beyond "we cover T1059.001" to answer **which specific behaviors** your detections actually catch. Auto-extracted from 8,200+ detection rules at index time.
+
+- **`analyze_procedure_coverage`** - Break down a technique into behavioral procedures (encoded commands, download cradles, AMSI bypass, etc.) and show which ones your detections cover vs. miss
+- **`compare_procedure_coverage`** - Cross-source matrix showing which source catches which procedures — reveals single-source gaps and redundancy
+- **`generate_navigator_layer`** - Export ATT&CK Navigator JSON layers, filterable by source/tactic/severity, ready to import at [mitre-attack.github.io/attack-navigator](https://mitre-attack.github.io/attack-navigator/)
+
+```
+"Are we actually covered for credential dumping?"
+
+T1003.001 — LSASS Memory
+Detections: 109 | Depth: moderate | Procedures: 45/59 (76%)
+
+  ✓ LSASS Memory Access        40 detections  [sigma, splunk_escu, elastic]
+  ✓ Mimikatz Usage              10 detections  [sigma, elastic]
+  ✓ Comsvcs.dll MiniDump         6 detections  [sigma, elastic, splunk_escu]
+  ✓ ProcDump LSASS Dump          8 detections  [sigma, splunk_escu, elastic]
+  ✗ NanoDump / Custom Dumpers   — single-source gap (sigma only)
+```
+
+Procedures are **auto-extracted at index time** — when new detection sources are added, procedure coverage regenerates automatically. 16 high-priority techniques have hand-curated procedure data; the rest are auto-clustered from detection queries, descriptions, and process names.
+
+### New Detection Sources
 
 - **CrowdStrike CQL Hub** - Query and search CrowdStrike Query Language (CQL) detections from the CQL Hub community repository
-- **Sublime Rules** - Query and search Sublime Security detection rules for email-based threats
+- **Sublime Rules** - Query and search Sublime Security detection rules for email-based threats (now mapped to MITRE ATT&CK techniques)
+
+## What's New in 3.1 - CQL Hub & Sublime Sources
+
+- Added CrowdStrike CQL Hub and Sublime Security as detection sources
+- Sublime rules now mapped to MITRE ATT&CK technique IDs via `attack_types` and `tactics_and_techniques`
+- Updated ATT&CK Navigator layer generation to v18.1 / Navigator v5.3.1
 
 ## What's New in 3.0 - Autonomous Detection Platform
 

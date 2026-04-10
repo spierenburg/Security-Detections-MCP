@@ -251,6 +251,9 @@ The pipeline uses three MCPs (the first is always used; the second depends on yo
 - `list_by_mitre` - Check existing coverage
 - `analyze_coverage` - Get coverage stats
 - `identify_gaps` - Find gaps for threats
+- `analyze_procedure_coverage` - Break down which behaviors a detection actually catches within a technique
+- `compare_procedure_coverage` - Cross-source procedure matrix (which source catches which behaviors)
+- `generate_navigator_layer` - Export ATT&CK Navigator layer JSON
 
 ### splunk-mcp (Splunk only)
 - `run_detection` - Execute detection YAML

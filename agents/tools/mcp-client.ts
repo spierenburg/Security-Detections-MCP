@@ -161,6 +161,21 @@ export class MCPClient {
               }
               break;
             }
+
+            case 'generate_navigator_layer': {
+              const name = (args.name as string) || 'Coverage Layer';
+              if (db.generateNavigatorLayer) {
+                const results = db.generateNavigatorLayer({
+                  name,
+                  description: args.description as string | undefined,
+                  source_type: args.source_type as string | undefined,
+                  tactic: args.tactic as string | undefined,
+                  severity: args.severity as string | undefined,
+                });
+                return { success: true, result: results };
+              }
+              break;
+            }
           }
         }
       } catch (error) {

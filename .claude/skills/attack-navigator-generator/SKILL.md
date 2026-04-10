@@ -21,8 +21,8 @@ Every layer follows this structure:
 {
   "name": "Layer Name",
   "versions": {
-    "attack": "16",
-    "navigator": "5.1.0",
+    "attack": "18.1",
+    "navigator": "5.3.1",
     "layer": "4.5"
   },
   "domain": "enterprise-attack",
@@ -124,7 +124,7 @@ import json
 def make_layer(name, techniques, description=""):
     return {
         "name": name,
-        "versions": {"attack": "16", "navigator": "5.1.0", "layer": "4.5"},
+        "versions": {"attack": "18.1", "navigator": "5.3.1", "layer": "4.5"},
         "domain": "enterprise-attack",
         "description": description,
         "techniques": techniques,

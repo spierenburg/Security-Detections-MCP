@@ -93,8 +93,8 @@ ${await this.generateCoverageEvolution(config)}
     const layer = {
       name: `Autonomous Detection Coverage - ${config.type}`,
       versions: {
-        attack: '14',
-        navigator: '4.9.0',
+        attack: '18.1',
+        navigator: '5.3.1',
         layer: '4.5'
       },
       domain: 'enterprise-attack',

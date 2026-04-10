@@ -20,6 +20,7 @@ export function createSchema(db: Database.Database): void {
   createStoriesFts(db);
   createStoriesTriggers(db);
   createStoriesIndexes(db);
+  createProcedureReferenceTable(db);
 }
 
 /**
@@ -211,6 +212,29 @@ function createStoriesTriggers(db: Database.Database): void {
  */
 function createStoriesIndexes(db: Database.Database): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_story_category ON stories(category)`);
+}
+
+/**
+ * Create the procedure_reference table for storing auto-extracted
+ * and hand-curated procedure-level ATT&CK coverage data.
+ */
+function createProcedureReferenceTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS procedure_reference (
+      id TEXT PRIMARY KEY,
+      technique_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'auto',
+      indicators TEXT NOT NULL,
+      detection_count INTEGER DEFAULT 0,
+      confidence REAL DEFAULT 1.0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_proc_ref_technique ON procedure_reference(technique_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_proc_ref_source ON procedure_reference(source)`);
 }
 
 /**

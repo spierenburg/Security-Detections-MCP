@@ -16,6 +16,7 @@ import {
   listByMitreTactic,
   listBySource,
   compareDetectionsBySource,
+  generateNavigatorLayer,
 } from '../db/index.js';
 
 import {
@@ -85,6 +86,13 @@ export const resources: ResourceDefinition[] = [
     description: 'Quick comparison of detection counts across sources (sigma, splunk, elastic, kql)',
     mimeType: 'application/json',
   },
+  // Navigator layer
+  {
+    uri: 'detection://navigator/layer',
+    name: 'ATT&CK Navigator Layer',
+    description: 'Full MITRE ATT&CK Navigator layer JSON with detection coverage heatmap. Import at https://mitre-attack.github.io/attack-navigator/',
+    mimeType: 'application/json',
+  },
   // Knowledge graph resources
   {
     uri: 'knowledge://graph/summary',
@@ -139,6 +147,12 @@ export const resourceTemplates: ResourceTemplateDefinition[] = [
     uriTemplate: 'knowledge://entity/{entityName}',
     name: 'Knowledge Entity Details',
     description: 'Get complete knowledge graph entity details including relations and observations',
+    mimeType: 'application/json',
+  },
+  {
+    uriTemplate: 'detection://navigator/layer/{sourceType}',
+    name: 'Source-Filtered Navigator Layer',
+    description: 'ATT&CK Navigator layer filtered by detection source (sigma, splunk_escu, elastic, kql, sublime, crowdstrike_cql)',
     mimeType: 'application/json',
   },
 ];
@@ -419,6 +433,9 @@ function getStaticResourceContent(uri: string): unknown {
       };
     }
 
+    case 'detection://navigator/layer':
+      return generateNavigatorLayer({ name: 'Detection Coverage' });
+
     case 'knowledge://graph/summary':
       return getKnowledgeStats();
 
@@ -501,6 +518,14 @@ export async function readResource(uri: string) {
   if (actorMatch) {
     const actorName = decodeURIComponent(actorMatch[1]);
     content = getActorResource(actorName);
+    return formatResourceResponse(uri, mimeType, content);
+  }
+
+  // Navigator layer template: detection://navigator/layer/{sourceType}
+  const navigatorMatch = uri.match(/^detection:\/\/navigator\/layer\/(.+)$/);
+  if (navigatorMatch) {
+    const sourceType = decodeURIComponent(navigatorMatch[1]) as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql';
+    content = generateNavigatorLayer({ name: `${sourceType} Detection Coverage`, source_type: sourceType });
     return formatResourceResponse(uri, mimeType, content);
   }
 

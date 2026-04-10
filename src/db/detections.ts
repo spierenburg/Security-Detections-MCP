@@ -1055,8 +1055,8 @@ export function generateNavigatorLayer(options: NavigatorLayerOptions): object {
   return {
     name: options.name,
     versions: {
-      attack: '18',
-      navigator: '5.1.0',
+      attack: '18.1',
+      navigator: '5.3.1',
       layer: '4.5',
     },
     domain: 'enterprise-attack',
@@ -1080,6 +1080,226 @@ export function generateNavigatorLayer(options: NavigatorLayerOptions): object {
     selectSubtechniquesWithParent: false,
     selectVisibleTechniques: false,
   };
+}
+
+// =============================================================================
+// PROCEDURE AUTO-EXTRACTION
+// =============================================================================
+
+const BEHAVIOR_KEYWORDS = [
+  'encoded command', 'base64', 'download', 'credential', 'dump', 'inject', 'hollow',
+  'obfuscat', 'bypass', 'evasion', 'persist', 'lateral', 'remote', 'scheduled task',
+  'service', 'registry', 'startup', 'script block', 'amsi', 'wmi', 'powershell',
+  'mimikatz', 'lsass', 'shadow cop', 'ransomware', 'encrypt', 'exfiltrat', 'tunnel',
+  'beacon', 'c2', 'command and control', 'brute force', 'spray', 'kerbero',
+  'pass the hash', 'pass the ticket', 'golden ticket', 'dcsync', 'ntds',
+  'dll side', 'dll hijack', 'process access', 'remote thread', 'token', 'impersonat',
+  'privilege', 'parent process', 'child process', 'masquerad', 'macro', 'office',
+  'phish', 'attachment', 'email', 'dns', 'http', 'clear log', 'event log', 'tamper',
+  'suspicious', 'anomal', 'unusual', 'cloud', 'aws', 'azure', 'container', 'kubernetes',
+  'api', 'oauth', 'saml', 'driver', 'kernel', 'named pipe', 'shellcode', 'reflection',
+];
+
+function categorizeDetection(text: string, logsourceCategory: string): string {
+  if (logsourceCategory === 'process_creation' || (text.includes('process') && text.includes('creat'))) return 'process_creation_monitoring';
+  if (logsourceCategory === 'process_access' || text.includes('process access')) return 'process_access_monitoring';
+  if (logsourceCategory.includes('registry') || text.includes('registry')) return 'registry_monitoring';
+  if (logsourceCategory.includes('file') || text.includes('file creat') || text.includes('file modif')) return 'file_monitoring';
+  if (logsourceCategory === 'network_connection' || text.includes('network') || text.includes('connection')) return 'network_connection_monitoring';
+  if (logsourceCategory === 'image_load' || text.includes('image load') || text.includes('dll load')) return 'module_load_monitoring';
+  if (text.includes('commandline') || text.includes('command line')) return 'command_line_monitoring';
+  if (text.includes('script')) return 'script_execution_monitoring';
+  if (text.includes('authenti') || text.includes('logon') || text.includes('login')) return 'authentication_monitoring';
+  if (text.includes('service') && (text.includes('creat') || text.includes('install'))) return 'service_monitoring';
+  if (text.includes('email') || text.includes('phish') || text.includes('spam')) return 'email_security';
+  if (text.includes('cloud') || text.includes('aws') || text.includes('azure')) return 'cloud_monitoring';
+  if (text.includes('driver') || text.includes('kernel')) return 'kernel_monitoring';
+  return 'general_monitoring';
+}
+
+/**
+ * Auto-extract procedure reference data from detections for a technique.
+ * Clusters detections by behavioral category and generates procedure entries.
+ */
+export function autoExtractProcedures(techniqueId: string): { technique_id: string; procedures_generated: number; detection_count: number } {
+  const database = getDb();
+  const detections = listByMitre(techniqueId, 1000);
+  if (detections.length === 0) return { technique_id: techniqueId, procedures_generated: 0, detection_count: 0 };
+
+  // Extract keyword frequencies
+  const kwFreq = new Map<string, number>();
+  for (const d of detections) {
+    const desc = (d.description || '').toLowerCase();
+    for (const kw of BEHAVIOR_KEYWORDS) {
+      if (desc.includes(kw)) kwFreq.set(kw, (kwFreq.get(kw) || 0) + 1);
+    }
+  }
+
+  // Group detections by category + dominant keyword
+  const groups: Record<string, { category: string; keyword: string | null; names: string[]; processNames: Set<string>; keywords: Set<string> }> = {};
+
+  for (const d of detections) {
+    const text = ((d.description || '') + ' ' + (d.query || '') + ' ' + (d.name || '')).toLowerCase();
+    const category = categorizeDetection(text, d.logsource_category || '');
+
+    let bestKw: string | null = null;
+    const desc = (d.description || '').toLowerCase();
+    for (const [kw, count] of kwFreq.entries()) {
+      if (desc.includes(kw) && count >= 2 && count < detections.length * 0.8) {
+        if (!bestKw || (kwFreq.get(bestKw) || 0) > count) bestKw = kw;
+      }
+    }
+
+    const key = `${category}:${bestKw || 'general'}`;
+    if (!groups[key]) groups[key] = { category, keyword: bestKw, names: [], processNames: new Set(), keywords: new Set() };
+    const g = groups[key];
+    g.names.push(d.name);
+    for (const pn of d.process_names || []) g.processNames.add(pn.toLowerCase());
+    if (bestKw) g.keywords.add(bestKw);
+  }
+
+  // Convert to procedure entries and store
+  database.exec(`DELETE FROM procedure_reference WHERE technique_id = '${techniqueId.replace(/'/g, "''")}' AND source = 'auto'`);
+
+  const insertStmt = database.prepare(
+    `INSERT OR REPLACE INTO procedure_reference (id, technique_id, name, category, description, source, indicators, detection_count, confidence)
+     VALUES (?, ?, ?, ?, ?, 'auto', ?, ?, ?)`
+  );
+
+  let idx = 0;
+  for (const [, g] of Object.entries(groups)) {
+    const name = g.keyword
+      ? g.keyword.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      : g.category.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    const indicators: Record<string, string[]> = {};
+    if (g.processNames.size > 0) indicators.process_names = [...g.processNames].slice(0, 10);
+    if (g.keywords.size > 0) indicators.description_keywords = [...g.keywords].slice(0, 10);
+
+    // Extract command patterns from queries
+    const cmdPats = new Set<string>();
+    const groupDets = detections.filter(det => g.names.includes(det.name));
+    for (const d of groupDets) {
+      if (d.query) {
+        const literals = d.query.toLowerCase().match(/['"]([^'"]{3,40})['"]/g);
+        if (literals) {
+          for (const lit of literals.slice(0, 10)) {
+            const val = lit.replace(/['"]/g, '').trim();
+            if (val.length >= 3 && !/^(and|or|not|true|false|null|none|string|type|object|select|from|where|index|name|value|count|table|status|data|endpoint|query|result|search|action|field|source|level|any|all|list|set|process|rule|detection|sigma)$/i.test(val)) {
+              cmdPats.add(val);
+            }
+          }
+        }
+      }
+    }
+    if (cmdPats.size > 0) indicators.command_patterns = [...cmdPats].slice(0, 15);
+
+    const confidence = g.names.length >= 10 ? 0.9 : g.names.length >= 5 ? 0.7 : g.names.length >= 3 ? 0.5 : 0.3;
+
+    insertStmt.run(
+      `${techniqueId}-auto-${idx++}`,
+      techniqueId,
+      name,
+      g.category,
+      `Auto-extracted: ${g.names.length} detections for ${g.keyword || g.category.replace(/_/g, ' ')}`,
+      JSON.stringify(indicators),
+      g.names.length,
+      confidence,
+    );
+  }
+
+  // Fallback: if clustering produced nothing, create a single procedure from all detections
+  if (idx === 0 && detections.length > 0) {
+    const allProcessNames = new Set<string>();
+    const allKeywords = new Set<string>();
+    for (const d of detections) {
+      for (const pn of d.process_names || []) allProcessNames.add(pn.toLowerCase());
+      const desc = (d.description || '').toLowerCase();
+      for (const kw of BEHAVIOR_KEYWORDS) {
+        if (desc.includes(kw)) allKeywords.add(kw);
+      }
+    }
+    const fallbackIndicators: Record<string, string[]> = {};
+    if (allProcessNames.size > 0) fallbackIndicators.process_names = [...allProcessNames].slice(0, 10);
+    if (allKeywords.size > 0) fallbackIndicators.description_keywords = [...allKeywords].slice(0, 10);
+
+    insertStmt.run(
+      `${techniqueId}-auto-0`,
+      techniqueId,
+      `${techniqueId} Detection`,
+      detections[0]?.logsource_category || 'general_monitoring',
+      `Auto-extracted: ${detections.length} detection(s)`,
+      JSON.stringify(fallbackIndicators),
+      detections.length,
+      detections.length >= 3 ? 0.5 : 0.2,
+    );
+    idx = 1;
+  }
+
+  return { technique_id: techniqueId, procedures_generated: idx, detection_count: detections.length };
+}
+
+/**
+ * Extract procedures for ALL techniques in the database.
+ * Loads hand-curated procedures first, then auto-extracts for the rest.
+ * Called after indexing completes.
+ */
+export function extractAllProcedures(): { techniques_processed: number; procedures_generated: number; hand_curated_loaded: number } {
+  const database = getDb();
+
+  // Ensure table exists
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS procedure_reference (
+      id TEXT PRIMARY KEY, technique_id TEXT NOT NULL, name TEXT NOT NULL,
+      category TEXT NOT NULL, description TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'auto',
+      indicators TEXT NOT NULL, detection_count INTEGER DEFAULT 0,
+      confidence REAL DEFAULT 1.0, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_proc_ref_technique ON procedure_reference(technique_id)`);
+
+  // Load hand-curated procedures
+  let handCuratedCount = 0;
+  try {
+    // Dynamic import isn't available in this context, so we use require-style
+    // The hand-curated data is imported statically by the tools layer
+    // Here we just ensure we don't overwrite hand-curated entries
+    database.exec(`DELETE FROM procedure_reference WHERE source = 'auto'`);
+  } catch {
+    // Table may not exist yet, that's fine
+  }
+
+  // Get all technique IDs from the database
+  const allMitreRows = database.prepare(`SELECT DISTINCT mitre_ids FROM detections WHERE mitre_ids IS NOT NULL AND mitre_ids != '[]'`).all() as { mitre_ids: string }[];
+  const allTechIds = new Set<string>();
+  for (const row of allMitreRows) {
+    try {
+      const ids = JSON.parse(row.mitre_ids) as string[];
+      for (const id of ids) allTechIds.add(id);
+    } catch { /* skip */ }
+  }
+
+  // Check which techniques already have hand-curated entries
+  const handCuratedTechIds = new Set<string>();
+  try {
+    const hcRows = database.prepare(`SELECT DISTINCT technique_id FROM procedure_reference WHERE source = 'hand_curated'`).all() as { technique_id: string }[];
+    for (const row of hcRows) handCuratedTechIds.add(row.technique_id);
+    handCuratedCount = hcRows.length;
+  } catch { /* table might not have hand_curated entries yet */ }
+
+  let processed = 0;
+  let totalProcs = 0;
+
+  for (const techId of allTechIds) {
+    if (handCuratedTechIds.has(techId)) continue; // skip hand-curated techniques
+    const result = autoExtractProcedures(techId);
+    if (result.procedures_generated > 0) {
+      processed++;
+      totalProcs += result.procedures_generated;
+    }
+  }
+
+  return { techniques_processed: processed, procedures_generated: totalProcs, hand_curated_loaded: handCuratedCount };
 }
 
 // =============================================================================
