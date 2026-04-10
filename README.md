@@ -4,6 +4,11 @@ An MCP (Model Context Protocol) server that lets LLMs query a unified database o
 
 > **New here? Start with the [Setup Guide](./SETUP.md)** -- covers macOS, Windows (WSL & native), and Linux step by step.
 
+## What's New in 3.1 - New Detection Sources
+
+- **CrowdStrike CQL Hub** - Query and search CrowdStrike Query Language (CQL) detections from the CQL Hub community repository
+- **Sublime Rules** - Query and search Sublime Security detection rules for email-based threats
+
 ## What's New in 3.0 - Autonomous Detection Platform
 
 Version 3.0 transforms this MCP into a **fully autonomous detection engineering platform**. Feed it threat intelligence, and it automatically:
