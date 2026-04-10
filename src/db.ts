@@ -285,7 +285,7 @@ function rowToDetection(row: Record<string, unknown>): Detection {
     name: row.name as string,
     description: row.description as string || '',
     query: row.query as string || '',
-    source_type: row.source_type as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime',
+    source_type: row.source_type as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
     mitre_ids: JSON.parse(row.mitre_ids as string || '[]'),
     logsource_category: row.logsource_category as string | null,
     logsource_product: row.logsource_product as string | null,
@@ -354,7 +354,7 @@ export function listDetections(limit: number = 100, offset: number = 0): Detecti
   return rows.map(rowToDetection);
 }
 
-export function listBySource(sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime', limit: number = 100, offset: number = 0): Detection[] {
+export function listBySource(sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql', limit: number = 100, offset: number = 0): Detection[] {
   const database = initDb();
   
   const stmt = database.prepare('SELECT * FROM detections WHERE source_type = ? ORDER BY name LIMIT ? OFFSET ?');
@@ -1365,7 +1365,7 @@ export function searchDetectionList(query: string, limit: number = 500): Detecti
 
 // Get name+ID list filtered by source
 export function listDetectionsBySourceLight(
-  sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime',
+  sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
   nameFilter?: string,
   limit: number = 500
 ): DetectionListItem[] {
@@ -1459,7 +1459,7 @@ export function compareDetectionsBySource(topic: string, limit: number = 100): S
 // Get detection names and IDs matching a pattern, grouped by source
 export function getDetectionNamesByPattern(
   pattern: string,
-  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime'
+  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql'
 ): { source: string; detections: Array<{ name: string; id: string }> }[] {
   const database = initDb();
   

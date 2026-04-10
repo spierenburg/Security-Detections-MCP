@@ -21,7 +21,7 @@ export interface ValidationResult {
 }
 
 export interface TechniqueIdFilters {
-  source_type?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime';
+  source_type?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql';
   tactic?: string;
   severity?: string;
 }
@@ -54,7 +54,7 @@ export interface DetectionSuggestion {
 export interface NavigatorLayerOptions {
   name: string;
   description?: string;
-  source_type?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime';
+  source_type?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql';
   tactic?: string;
   severity?: string;
 }
@@ -121,7 +121,7 @@ function rowToDetection(row: Record<string, unknown>): Detection {
     name: row.name as string,
     description: row.description as string || '',
     query: row.query as string || '',
-    source_type: row.source_type as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime',
+    source_type: row.source_type as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
     mitre_ids: safeJsonParse<string[]>(row.mitre_ids as string, []),
     logsource_category: row.logsource_category as string | null,
     logsource_product: row.logsource_product as string | null,
@@ -296,7 +296,7 @@ export function listDetections(limit: number = 100, offset: number = 0): Detecti
 /**
  * List detections filtered by source type.
  */
-export function listBySource(sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime', limit: number = 100, offset: number = 0): Detection[] {
+export function listBySource(sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql', limit: number = 100, offset: number = 0): Detection[] {
   const database = getDb();
   
   const stmt = database.prepare('SELECT * FROM detections WHERE source_type = ? ORDER BY name LIMIT ? OFFSET ?');
@@ -813,7 +813,7 @@ export function getTechniqueIds(filters: TechniqueIdFilters = {}): string[] {
 /**
  * Analyze coverage by tactic and identify strengths/weaknesses.
  */
-export function analyzeCoverage(sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime'): CoverageReport {
+export function analyzeCoverage(sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql'): CoverageReport {
   const database = getDb();
   
   let countSql = 'SELECT COUNT(DISTINCT id) as count FROM detections';
@@ -896,7 +896,7 @@ export function analyzeCoverage(sourceType?: 'sigma' | 'splunk_escu' | 'elastic'
  */
 export function identifyGaps(
   threatProfile: string,
-  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime'
+  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql'
 ): GapAnalysis {
   const targetTechniques = THREAT_PROFILES[threatProfile.toLowerCase()] || THREAT_PROFILES['apt'];
   
@@ -952,7 +952,7 @@ export function identifyGaps(
  */
 export function suggestDetections(
   techniqueId: string,
-  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime'
+  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql'
 ): DetectionSuggestion {
   const database = getDb();
   
@@ -1109,7 +1109,7 @@ export function searchDetectionList(query: string, limit: number = 500): Detecti
  * List detections by source with optional name filter, returning lightweight results.
  */
 export function listDetectionsBySourceLight(
-  sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime',
+  sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
   nameFilter?: string,
   limit: number = 500
 ): DetectionListItem[] {
@@ -1202,7 +1202,7 @@ export function compareDetectionsBySource(topic: string, limit: number = 100): S
  */
 export function getDetectionNamesByPattern(
   pattern: string,
-  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime'
+  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql'
 ): { source: string; detections: Array<{ name: string; id: string }> }[] {
   const database = getDb();
   
@@ -1246,7 +1246,7 @@ export function countDetectionsBySource(topic: string): Record<string, number> {
   
   const rows = stmt.all(topic) as { source_type: string; count: number }[];
   
-  const result: Record<string, number> = { sigma: 0, splunk_escu: 0, elastic: 0, kql: 0, sublime: 0 };
+  const result: Record<string, number> = { sigma: 0, splunk_escu: 0, elastic: 0, kql: 0, sublime: 0, crowdstrike_cql: 0 };
   for (const row of rows) {
     result[row.source_type] = row.count;
   }

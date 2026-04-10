@@ -4,7 +4,7 @@
  * This module exports all type definitions used throughout the MCP server.
  * Types are organized into logical modules:
  * 
- * - detection: Core detection types (Sigma, Splunk, Elastic, KQL)
+ * - detection: Core detection types (Sigma, Splunk, Elastic, KQL, CrowdStrike CQL)
  * - story: Analytic story and campaign grouping types
  * - stats: Statistics, comparisons, and cached query types
  * - knowledge: Knowledge graph types for agent memory
@@ -22,6 +22,7 @@ export type {
   ElasticThreat,
   ElasticTechnique,
   SublimeRule,
+  CqlHubRule,
 } from './detection.js';
 
 // Story types

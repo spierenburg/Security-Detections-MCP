@@ -1,17 +1,17 @@
 /**
  * Detection Types
- * Core detection interfaces for Sigma, Splunk ESCU, Elastic, KQL, and Sublime rules
+ * Core detection interfaces for Sigma, Splunk ESCU, Elastic, KQL, Sublime, and CrowdStrike CQL rules
  */
 
 /**
- * Unified detection schema - normalized from Sigma, Splunk ESCU, Elastic, KQL, and Sublime sources
+ * Unified detection schema - normalized from Sigma, Splunk ESCU, Elastic, KQL, Sublime, and CrowdStrike CQL sources
  */
 export interface Detection {
   id: string;
   name: string;
   description: string;
   query: string; // detection logic (YAML for Sigma, SPL for Splunk, EQL/KQL for Elastic, MQL for Sublime)
-  source_type: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime';
+  source_type: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql';
   mitre_ids: string[];
   logsource_category: string | null;
   logsource_product: string | null;
@@ -55,7 +55,7 @@ export interface Detection {
 export interface DetectionSummary {
   id: string;
   name: string;
-  source_type: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime';
+  source_type: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql';
   mitre_ids: string[];
   severity: string | null;
   mitre_tactics: string[];
@@ -193,4 +193,20 @@ export interface ElasticTechnique {
   name?: string;
   reference?: string;
   subtechnique?: ElasticTechnique[];
+}
+
+/**
+ * CQL Hub rule structure (CrowdStrike Query Language)
+ * @see https://github.com/ByteRay-Labs/Query-Hub
+ */
+export interface CqlHubRule {
+  name: string;
+  cql: string;
+  mitre_ids?: string[];
+  description?: string;
+  author?: string;
+  log_sources?: string[];
+  tags?: string[];
+  cs_required_modules?: string[];
+  explanation?: string;
 }

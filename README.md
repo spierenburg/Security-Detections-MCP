@@ -1,6 +1,6 @@
 # Security Detections MCP
 
-An MCP (Model Context Protocol) server that lets LLMs query a unified database of **Sigma**, **Splunk ESCU**, **Elastic**, **KQL**, and **Sublime** security detection rules.
+An MCP (Model Context Protocol) server that lets LLMs query a unified database of **Sigma**, **Splunk ESCU**, **Elastic**, **KQL**, **Sublime**, and **CrowdStrike CQL** security detection rules.
 
 > **New here? Start with the [Setup Guide](./SETUP.md)** -- covers macOS, Windows (WSL & native), and Linux step by step.
 
@@ -213,7 +213,7 @@ Claude will:
 - **🆕 Server Instructions** - Built-in usage guide with examples for better LLM understanding
 - **🆕 Structured Errors** - Helpful error messages with suggestions and similar items
 - **🆕 Interactive Tools** - Gap prioritization and sprint planning with form-based input (Cursor 0.42+)
-- **Unified Search** - Query Sigma, Splunk ESCU, Elastic, KQL, and Sublime detections from a single interface
+- **Unified Search** - Query Sigma, Splunk ESCU, Elastic, KQL, Sublime, and CrowdStrike CQL detections from a single interface
 - **Full-Text Search** - SQLite FTS5 powered search across names, descriptions, queries, MITRE tactics, CVEs, process names, and more
 - **MITRE ATT&CK Mapping** - Filter detections by technique ID or tactic
 - **CVE Coverage** - Find detections for specific CVE vulnerabilities
@@ -221,7 +221,7 @@ Claude will:
 - **Analytic Stories** - Query by Splunk analytic story (optional - enhances context)
 - **KQL Categories** - Filter KQL queries by category (Defender For Endpoint, Azure AD, Threat Hunting, etc.)
 - **Auto-Indexing** - Automatically indexes detections on startup from configured paths
-- **Multi-Format Support** - YAML (Sigma, Splunk, Sublime), TOML (Elastic), Markdown (KQL)
+- **Multi-Format Support** - YAML (Sigma, Splunk, Sublime, CrowdStrike CQL), TOML (Elastic), Markdown (KQL)
 - **Logsource Filtering** - Filter Sigma rules by category, product, or service
 - **Severity Filtering** - Filter by criticality level
 
@@ -262,7 +262,8 @@ Add to your MCP config (`~/.cursor/mcp.json` or `.cursor/mcp.json` in your proje
         "ELASTIC_PATHS": "/path/to/detection-rules/rules",
         "STORY_PATHS": "/path/to/security_content/stories",
         "KQL_PATHS": "/path/to/Hunting-Queries-Detection-Rules",
-        "SUBLIME_PATHS": "/path/to/sublime-rules/detection-rules"
+        "SUBLIME_PATHS": "/path/to/sublime-rules/detection-rules",
+        "CQL_HUB_PATHS": "/path/to/cql-hub/queries"
       }
     }
   }
@@ -285,7 +286,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "ELASTIC_PATHS": "/Users/you/detection-rules/rules",
         "STORY_PATHS": "/Users/you/security_content/stories",
         "KQL_PATHS": "/Users/you/Hunting-Queries-Detection-Rules",
-        "SUBLIME_PATHS": "/Users/you/sublime-rules/detection-rules"
+        "SUBLIME_PATHS": "/Users/you/sublime-rules/detection-rules",
+        "CQL_HUB_PATHS": "/Users/you/cql-hub/queries"
       }
     }
   }
@@ -308,7 +310,8 @@ Add to `~/.vscode/mcp.json`:
         "ELASTIC_PATHS": "/Users/you/detection-rules/rules",
         "KQL_PATHS": "/Users/you/kql-bertjanp,/Users/you/kql-jkerai1",
         "STORY_PATHS": "/Users/you/security_content/stories",
-        "SUBLIME_PATHS": "/Users/you/sublime-rules/detection-rules"
+        "SUBLIME_PATHS": "/Users/you/sublime-rules/detection-rules",
+        "CQL_HUB_PATHS": "/Users/you/cql-hub/queries"
       }
     }
   }
@@ -331,7 +334,8 @@ Add to `~/.vscode/mcp.json`:
         "ELASTIC_PATHS": "/Users/you/detection-rules/rules",
         "KQL_PATHS": "/Users/you/kql-bertjanp,/Users/you/kql-jkerai1",
         "STORY_PATHS": "/Users/you/security_content/stories",
-        "SUBLIME_PATHS": "/Users/you/sublime-rules/detection-rules"
+        "SUBLIME_PATHS": "/Users/you/sublime-rules/detection-rules",
+        "CQL_HUB_PATHS": "/Users/you/cql-hub/queries"
       }
     }
   }
@@ -346,6 +350,7 @@ Add to `~/.vscode/mcp.json`:
 | `ELASTIC_PATHS` | Comma-separated paths to Elastic detection rule directories | At least one source required |
 | `KQL_PATHS` | Comma-separated paths to KQL hunting query directories | At least one source required |
 | `SUBLIME_PATHS` | Comma-separated paths to Sublime Security rule directories | At least one source required |
+| `CQL_HUB_PATHS` | Comma-separated paths to CQL Hub (CrowdStrike) query directories | At least one source required |
 | `STORY_PATHS` | Comma-separated paths to Splunk analytic story directories | No (enhances context) |
 
 ## Getting Detection Content
@@ -378,12 +383,16 @@ git clone --depth 1 https://github.com/jkerai1/KQL-Queries.git kql-jkerai1
 git clone --depth 1 --filter=blob:none --sparse https://github.com/sublime-security/sublime-rules.git
 cd sublime-rules && git sparse-checkout set detection-rules && cd ..
 
+# Download CQL Hub CrowdStrike queries (~139+ queries)
+git clone --depth 1 https://github.com/ByteRay-Labs/Query-Hub.git cql-hub
+
 echo "Done! Configure your MCP with these paths:"
 echo "  SIGMA_PATHS: $(pwd)/sigma/rules,$(pwd)/sigma/rules-threat-hunting"
 echo "  SPLUNK_PATHS: $(pwd)/security_content/detections"
 echo "  ELASTIC_PATHS: $(pwd)/detection-rules/rules"
 echo "  KQL_PATHS: $(pwd)/kql-bertjanp,$(pwd)/kql-jkerai1"
 echo "  SUBLIME_PATHS: $(pwd)/sublime-rules/detection-rules"
+echo "  CQL_HUB_PATHS: $(pwd)/cql-hub/queries"
 echo "  STORY_PATHS: $(pwd)/security_content/stories"
 ```
 
@@ -412,6 +421,10 @@ git clone https://github.com/jkerai1/KQL-Queries.git
 # Sublime Security Rules
 git clone https://github.com/sublime-security/sublime-rules.git
 # Use detection-rules/ directory
+
+# CQL Hub (CrowdStrike Query Language)
+git clone https://github.com/ByteRay-Labs/Query-Hub.git
+# Use queries/ directory
 ```
 
 ## 🆕 MCP Resources - Readable Context
@@ -441,7 +454,7 @@ The server provides **autocomplete suggestions** as you type argument values:
 | `process_name` | Process names in your detections (powershell.exe, etc.) |
 | `tactic` | All 14 MITRE tactics |
 | `severity` | informational, low, medium, high, critical |
-| `source_type` | sigma, splunk_escu, elastic, kql, sublime |
+| `source_type` | sigma, splunk_escu, elastic, kql, sublime, crowdstrike_cql |
 | `threat_profile` | ransomware, apt, initial-access, persistence, etc. |
 
 This prevents typos and helps discover what values are available in your detection corpus.
@@ -500,7 +513,7 @@ Tool: prioritize_gaps(threat_profile="ransomware")
 | `search(query, limit)` | Full-text search across all detection fields (names, descriptions, queries, CVEs, process names, etc.) |
 | `get_by_id(id)` | Get a single detection by its ID |
 | `list_all(limit, offset)` | Paginated list of all detections |
-| `list_by_source(source_type)` | Filter by `sigma`, `splunk_escu`, `elastic`, `kql`, or `sublime` |
+| `list_by_source(source_type)` | Filter by `sigma`, `splunk_escu`, `elastic`, `kql`, `sublime`, or `crowdstrike_cql` |
 | `get_raw_yaml(id)` | Get the original YAML/TOML/Markdown content |
 | `get_stats()` | Get index statistics |
 | `rebuild_index()` | Force re-index from configured paths |
@@ -851,7 +864,7 @@ Tool: list_by_cve(cve_id="CVE-2024-27198")
 ```
 LLM: "What detections do we have for credential dumping?"
 Tool: search(query="credential dumping", limit=10)
-→ Returns results from Sigma, Splunk, Elastic, KQL, AND Sublime
+→ Returns results from Sigma, Splunk, Elastic, KQL, Sublime, AND CrowdStrike CQL
 ```
 
 #### Find Web Server Attack Detections
@@ -884,6 +897,14 @@ Tool: list_by_source(source_type="sublime")
 → Returns Sublime Security email detection rules for BEC, phishing, malware, etc.
 ```
 
+#### Find CrowdStrike CQL Hunting Queries
+
+```
+LLM: "What CrowdStrike queries do we have for lateral movement?"
+Tool: list_by_source(source_type="crowdstrike_cql")
+→ Returns CQL Hub queries for CrowdStrike NextGen SIEM and Falcon LogScale
+```
+
 #### Search for BloodHound Detections
 
 ```
@@ -894,7 +915,7 @@ Tool: search(query="bloodhound", limit=10)
 
 ## Unified Schema
 
-All detection sources (Sigma, Splunk, Elastic, KQL, Sublime) are normalized to a common schema:
+All detection sources (Sigma, Splunk, Elastic, KQL, Sublime, CrowdStrike CQL) are normalized to a common schema:
 
 ### Core Fields
 
@@ -903,8 +924,8 @@ All detection sources (Sigma, Splunk, Elastic, KQL, Sublime) are normalized to a
 | `id` | Unique identifier |
 | `name` | Detection name/title |
 | `description` | What the detection looks for |
-| `query` | Detection logic (Sigma YAML, Splunk SPL, Elastic EQL, KQL, or Sublime MQL) |
-| `source_type` | `sigma`, `splunk_escu`, `elastic`, `kql`, or `sublime` |
+| `query` | Detection logic (Sigma YAML, Splunk SPL, Elastic EQL, KQL, Sublime MQL, or CrowdStrike CQL) |
+| `source_type` | `sigma`, `splunk_escu`, `elastic`, `kql`, `sublime`, or `crowdstrike_cql` |
 | `severity` | Detection severity level |
 | `status` | Rule status (stable, test, experimental, production, etc.) |
 | `author` | Rule author |
@@ -988,6 +1009,14 @@ From [Sublime Security](https://github.com/sublime-security/sublime-rules):
 - Optional: `description`, `severity`, `id`, `references`, `tags`, `authors`, `attack_types`, `tactics_and_techniques`, `detection_methods`, `false_positives`
 - Uses MQL (Message Query Language) for email-specific detection logic
 - Covers BEC/fraud, credential phishing, malware delivery, spam, and more
+
+### CrowdStrike CQL Queries (YAML)
+
+From [CQL Hub](https://github.com/ByteRay-Labs/Query-Hub):
+- Required: `name`, `cql` (CrowdStrike Query Language query)
+- Optional: `description`, `mitre_ids`, `author`, `log_sources`, `tags`, `cs_required_modules`, `explanation`
+- Community-driven detection and hunting queries for CrowdStrike NextGen SIEM and Falcon LogScale
+- Covers endpoint, network, cloud, and identity detection use cases
 
 ### KQL Hunting Queries (Markdown & Raw .kql)
 
@@ -1074,6 +1103,7 @@ SPLUNK_PATHS="./detections/splunk/detections" \
 ELASTIC_PATHS="./detections/elastic/rules" \
 KQL_PATHS="./detections/kql" \
 SUBLIME_PATHS="./detections/sublime-rules/detection-rules" \
+CQL_HUB_PATHS="./detections/cql-hub/queries" \
 STORY_PATHS="./detections/splunk/stories" \
 npm start
 ```
@@ -1089,11 +1119,12 @@ When fully indexed with all sources:
 | Elastic Rules | ~1,500+ |
 | KQL Queries | ~420+ |
 | Sublime Rules | ~900+ |
+| CrowdStrike CQL | ~139+ |
 | Analytic Stories | ~330 |
-| **Total Detections** | **~8,100+** |
+| **Total Detections** | **~8,200+** |
 | **Indexed Patterns** | **10,235+** |
 | **Techniques with Patterns** | **528+** |
-| **Detection Formats** | **5** (Sigma, Splunk, Elastic, KQL, Sublime) |
+| **Detection Formats** | **6** (Sigma, Splunk, Elastic, KQL, Sublime, CrowdStrike CQL) |
 | **Total Tools** | **71+** |
 | **MCP Prompts** | **11** |
 | **MCP Resources** | **9 static + 5 templates** |
@@ -1265,7 +1296,8 @@ LLM workflow:
         "SPLUNK_PATHS": "/path/to/security_content/detections",
         "ELASTIC_PATHS": "/path/to/detection-rules/rules",
         "KQL_PATHS": "/path/to/kql-hunting-queries",
-        "SUBLIME_PATHS": "/path/to/sublime-rules/detection-rules"
+        "SUBLIME_PATHS": "/path/to/sublime-rules/detection-rules",
+        "CQL_HUB_PATHS": "/path/to/cql-hub/queries"
       }
     },
     "mitre-attack": {

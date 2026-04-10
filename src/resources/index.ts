@@ -231,7 +231,7 @@ function getTacticResource(tactic: string): unknown {
  * Get statistics and sample detections for a source type
  */
 function getSourceResource(sourceType: string): unknown {
-  const validSources = ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime'];
+  const validSources = ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql'];
   const normalizedSource = sourceType.toLowerCase();
 
   if (!validSources.includes(normalizedSource)) {
@@ -242,7 +242,7 @@ function getSourceResource(sourceType: string): unknown {
   }
 
   const detections = listBySource(
-    normalizedSource as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime',
+    normalizedSource as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
     50
   );
 

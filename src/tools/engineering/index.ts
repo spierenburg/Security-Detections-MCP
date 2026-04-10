@@ -44,7 +44,7 @@ const getQueryPatternsTool = defineTool({
       },
       source_type: {
         type: 'string',
-        enum: ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime'],
+        enum: ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql'],
         description: 'Filter patterns by source type (optional)',
       },
     },
@@ -205,7 +205,7 @@ const findSimilarDetectionsTool = defineTool({
       },
       source_type: {
         type: 'string',
-        enum: ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime'],
+        enum: ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql'],
         description: 'Filter by source type (optional)',
       },
       limit: {
