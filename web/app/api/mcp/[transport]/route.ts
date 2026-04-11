@@ -36,6 +36,11 @@ const handler = createMcpHandler(
     basePath: '/api/mcp',
     maxDuration: 60,
     verboseLogs: false,
+    // Explicit stateless mode per MCP 2025-11-25 Streamable HTTP:
+    // no session cookies, no Mcp-Session-Id emitted, every request
+    // independent. Fits Vercel serverless natively — no Redis needed.
+    sessionIdGenerator: undefined,
+    disableSse: true,
   },
 );
 

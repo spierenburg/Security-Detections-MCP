@@ -153,37 +153,105 @@ export default function McpSetupPage() {
               </div>
             </Step>
 
-            <Step number={2} title="POINT YOUR MCP CLIENT AT IT">
-              <p>Add this to your client config. No binary to install, no env vars, no local indexing.</p>
+            <Step number={2} title="INSTALL IN ONE CLICK">
+              <p>Click the button for your client. Replace <code className="text-amber font-[family-name:var(--font-mono)]">sdmcp_YOUR_TOKEN_HERE</code> with the token you just generated (or paste it when the client prompts).</p>
 
-              {/* Claude Desktop / Code */}
+              {/* One-click install buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                {/* Cursor */}
+                <a
+                  href="https://cursor.com/en/install-mcp?name=security-detections-hosted&config=eyJ1cmwiOiJodHRwczovL2RldGVjdC5taWNoYWVsaGFhZy5vcmcvYXBpL21jcC9odHRwIiwiaGVhZGVycyI6eyJBdXRob3JpemF0aW9uIjoiQmVhcmVyIHNkbWNwX1lPVVJfVE9LRU5fSEVSRSJ9fQ=="
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border-bright hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
+                >
+                  <div>
+                    <div className="text-text-bright font-bold text-sm">Cursor</div>
+                    <div className="text-text-dim text-xs font-[family-name:var(--font-mono)]">Deeplink install</div>
+                  </div>
+                  <span className="text-amber font-[family-name:var(--font-mono)] text-xs">INSTALL &rarr;</span>
+                </a>
+
+                {/* VS Code */}
+                <a
+                  href="vscode:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
+                  className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border-bright hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
+                >
+                  <div>
+                    <div className="text-text-bright font-bold text-sm">VS Code</div>
+                    <div className="text-text-dim text-xs font-[family-name:var(--font-mono)]">Deeplink install</div>
+                  </div>
+                  <span className="text-amber font-[family-name:var(--font-mono)] text-xs">INSTALL &rarr;</span>
+                </a>
+
+                {/* VS Code Insiders */}
+                <a
+                  href="vscode-insiders:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
+                  className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
+                >
+                  <div>
+                    <div className="text-text-bright font-bold text-sm">VS Code Insiders</div>
+                    <div className="text-text-dim text-xs font-[family-name:var(--font-mono)]">Deeplink install</div>
+                  </div>
+                  <span className="text-amber font-[family-name:var(--font-mono)] text-xs">INSTALL &rarr;</span>
+                </a>
+
+                {/* Claude Code */}
+                <Link
+                  href="/account/tokens"
+                  className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
+                >
+                  <div>
+                    <div className="text-text-bright font-bold text-sm">Claude Code</div>
+                    <div className="text-text-dim text-xs font-[family-name:var(--font-mono)]">CLI one-liner below</div>
+                  </div>
+                  <span className="text-amber font-[family-name:var(--font-mono)] text-xs">GET TOKEN &rarr;</span>
+                </Link>
+              </div>
+
+              {/* Claude Code CLI */}
+              <div className="mt-6">
+                <div className="text-green font-[family-name:var(--font-mono)] text-sm font-bold mb-2">Claude Code (CLI one-liner)</div>
+                <CodeBlock title="Terminal" lang="bash">{`claude mcp add --transport http security-detections \\
+  https://detect.michaelhaag.org/api/mcp/http \\
+  --header "Authorization: Bearer sdmcp_YOUR_TOKEN_HERE"`}</CodeBlock>
+              </div>
+
+              {/* Claude Desktop via mcp-remote */}
               <div className="mt-4">
-                <div className="text-green font-[family-name:var(--font-mono)] text-sm font-bold mb-2">Claude Desktop / Claude Code</div>
-                <CodeBlock title="claude_desktop_config.json" lang="json">{`{
+                <div className="text-green font-[family-name:var(--font-mono)] text-sm font-bold mb-2">Claude Desktop (via mcp-remote proxy)</div>
+                <p className="text-text-dim text-xs mb-2">
+                  Claude Desktop doesn&apos;t speak remote HTTP natively yet — use <code className="text-amber">mcp-remote</code> to bridge stdio to HTTP.
+                </p>
+                <CodeBlock title="~/Library/Application Support/Claude/claude_desktop_config.json" lang="json">{`{
   "mcpServers": {
     "security-detections": {
-      "url": "https://detect.michaelhaag.org/api/mcp/http",
-      "headers": {
-        "Authorization": "Bearer sdmcp_YOUR_TOKEN_HERE"
-      }
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://detect.michaelhaag.org/api/mcp/http",
+        "--header",
+        "Authorization: Bearer sdmcp_YOUR_TOKEN_HERE"
+      ]
     }
   }
 }`}</CodeBlock>
               </div>
 
-              {/* Cursor */}
+              {/* OpenAI Codex */}
               <div className="mt-4">
-                <div className="text-green font-[family-name:var(--font-mono)] text-sm font-bold mb-2">Cursor IDE</div>
-                <CodeBlock title="~/.cursor/mcp.json" lang="json">{`{
-  "mcpServers": {
-    "security-detections": {
-      "url": "https://detect.michaelhaag.org/api/mcp/http",
-      "headers": {
-        "Authorization": "Bearer sdmcp_YOUR_TOKEN_HERE"
-      }
-    }
-  }
-}`}</CodeBlock>
+                <div className="text-green font-[family-name:var(--font-mono)] text-sm font-bold mb-2">OpenAI Codex</div>
+                <CodeBlock title="Terminal" lang="bash">{`codex mcp add security-detections \\
+  --transport http https://detect.michaelhaag.org/api/mcp/http \\
+  --header "Authorization: Bearer sdmcp_YOUR_TOKEN_HERE"`}</CodeBlock>
+                <p className="text-text-dim text-xs mt-2">
+                  Or edit <code className="text-amber">~/.codex/config.toml</code>:
+                </p>
+                <CodeBlock title="~/.codex/config.toml" lang="toml">{`[mcp_servers.security-detections]
+type = "http"
+url = "https://detect.michaelhaag.org/api/mcp/http"
+headers = { Authorization = "Bearer sdmcp_YOUR_TOKEN_HERE" }`}</CodeBlock>
               </div>
 
               {/* Test with curl */}

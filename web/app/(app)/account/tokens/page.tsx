@@ -90,28 +90,54 @@ export default async function TokensPage() {
           CONFIGURE YOUR CLIENT
         </h2>
 
+        {/* One-click install buttons */}
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          <a
+            href="https://cursor.com/en/install-mcp?name=security-detections-hosted&config=eyJ1cmwiOiJodHRwczovL2RldGVjdC5taWNoYWVsaGFhZy5vcmcvYXBpL21jcC9odHRwIiwiaGVhZGVycyI6eyJBdXRob3JpemF0aW9uIjoiQmVhcmVyIHNkbWNwX1lPVVJfVE9LRU5fSEVSRSJ9fQ=="
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between bg-bg2 hover:bg-card2 border border-border hover:border-amber/50 rounded px-3 py-2 transition-colors"
+          >
+            <span className="text-text-bright font-bold text-xs">Install in Cursor</span>
+            <span className="text-amber text-xs">&rarr;</span>
+          </a>
+          <a
+            href="vscode:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
+            className="flex items-center justify-between bg-bg2 hover:bg-card2 border border-border hover:border-amber/50 rounded px-3 py-2 transition-colors"
+          >
+            <span className="text-text-bright font-bold text-xs">Install in VS Code</span>
+            <span className="text-amber text-xs">&rarr;</span>
+          </a>
+        </div>
+
         <div className="mb-5">
-          <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">Claude Desktop / Claude Code</div>
+          <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">Claude Code (CLI)</div>
+          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`claude mcp add --transport http security-detections \\
+  https://detect.michaelhaag.org/api/mcp/http \\
+  --header "Authorization: Bearer sdmcp_..."`}</pre>
+        </div>
+
+        <div className="mb-5">
+          <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">
+            Claude Desktop (via mcp-remote)
+          </div>
           <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`{
   "mcpServers": {
     "security-detections": {
-      "url": "https://detect.michaelhaag.org/api/mcp/http",
-      "headers": { "Authorization": "Bearer sdmcp_..." }
+      "command": "npx",
+      "args": ["-y", "mcp-remote",
+        "https://detect.michaelhaag.org/api/mcp/http",
+        "--header", "Authorization: Bearer sdmcp_..."]
     }
   }
 }`}</pre>
         </div>
 
         <div className="mb-5">
-          <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">Cursor (~/.cursor/mcp.json)</div>
-          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`{
-  "mcpServers": {
-    "security-detections": {
-      "url": "https://detect.michaelhaag.org/api/mcp/http",
-      "headers": { "Authorization": "Bearer sdmcp_..." }
-    }
-  }
-}`}</pre>
+          <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">OpenAI Codex (CLI)</div>
+          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`codex mcp add security-detections \\
+  --transport http https://detect.michaelhaag.org/api/mcp/http \\
+  --header "Authorization: Bearer sdmcp_..."`}</pre>
         </div>
 
         <div>
