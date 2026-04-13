@@ -160,7 +160,7 @@ export default function McpSetupPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 {/* Cursor */}
                 <a
-                  href="https://cursor.com/en/install-mcp?name=security-detections-hosted&config=eyJ1cmwiOiJodHRwczovL2RldGVjdC5taWNoYWVsaGFhZy5vcmcvYXBpL21jcC9odHRwIiwiaGVhZGVycyI6eyJBdXRob3JpemF0aW9uIjoiQmVhcmVyIHNkbWNwX1lPVVJfVE9LRU5fSEVSRSJ9fQ=="
+                  href="https://cursor.com/en/install-mcp?name=security-detections-hosted&config=eyJ1cmwiOiJodHRwczovL2RldGVjdC5taWNoYWVsaGFhZy5vcmcvYXBpL21jcC9tY3AiLCJoZWFkZXJzIjp7IkF1dGhvcml6YXRpb24iOiJCZWFyZXIgc2RtY3BfWU9VUl9UT0tFTl9IRVJFIn19"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border-bright hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
@@ -174,7 +174,7 @@ export default function McpSetupPage() {
 
                 {/* VS Code */}
                 <a
-                  href="vscode:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
+                  href="vscode:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fmcp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
                   className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border-bright hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
                 >
                   <div>
@@ -186,7 +186,7 @@ export default function McpSetupPage() {
 
                 {/* VS Code Insiders */}
                 <a
-                  href="vscode-insiders:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
+                  href="vscode-insiders:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fmcp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D"
                   className="flex items-center justify-between gap-3 bg-card hover:bg-card2 border border-border hover:border-amber/50 rounded-[var(--radius-button)] px-4 py-3 transition-colors"
                 >
                   <div>

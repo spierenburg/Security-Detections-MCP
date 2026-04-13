@@ -58,7 +58,7 @@ You can create up to **10 active tokens per account**. Revoke any you no longer 
 
 One-click install (opens Cursor):
 
-**[Install Hosted MCP in Cursor →](https://cursor.com/en/install-mcp?name=security-detections-hosted&config=eyJ1cmwiOiJodHRwczovL2RldGVjdC5taWNoYWVsaGFhZy5vcmcvYXBpL21jcC9odHRwIiwiaGVhZGVycyI6eyJBdXRob3JpemF0aW9uIjoiQmVhcmVyIHNkbWNwX1lPVVJfVE9LRU5fSEVSRSJ9fQ==)**
+**[Install Hosted MCP in Cursor →](https://cursor.com/en/install-mcp?name=security-detections-hosted&config=eyJ1cmwiOiJodHRwczovL2RldGVjdC5taWNoYWVsaGFhZy5vcmcvYXBpL21jcC9tY3AiLCJoZWFkZXJzIjp7IkF1dGhvcml6YXRpb24iOiJCZWFyZXIgc2RtY3BfWU9VUl9UT0tFTl9IRVJFIn19)**
 
 After clicking, edit the installed server in **Cursor → Settings → MCP** and replace `sdmcp_YOUR_TOKEN_HERE` with your real token. Or edit `~/.cursor/mcp.json` directly:
 
@@ -79,8 +79,8 @@ After clicking, edit the installed server in **Cursor → Settings → MCP** and
 
 One-click install (opens VS Code):
 
-- **[Install in VS Code →](vscode:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D)**
-- **[Install in VS Code Insiders →](vscode-insiders:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdetect.michaelhaag.org%2Fapi%2Fmcp%2Fhttp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D)**
+- **[Install in VS Code →](vscode:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A//detect.michaelhaag.org/api/mcp/mcp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D)**
+- **[Install in VS Code Insiders →](vscode-insiders:mcp/install?%7B%22name%22%3A%22security-detections%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A//detect.michaelhaag.org/api/mcp/mcp%22%2C%22headers%22%3A%7B%22Authorization%22%3A%22Bearer%20sdmcp_YOUR_TOKEN_HERE%22%7D%7D)**
 
 After clicking, edit the installed server in VS Code and replace the placeholder token. Or edit your MCP config directly:
 
