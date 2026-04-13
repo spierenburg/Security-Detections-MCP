@@ -84,8 +84,10 @@ export function Sidebar({ user, profile }: SidebarProps) {
             </div>
             <div className="hidden lg:block overflow-hidden">
               <div className="text-text-bright text-sm truncate">{profile?.display_name || 'User'}</div>
-              <div className="text-text-dim text-xs truncate font-[family-name:var(--font-mono)]">
-                {profile?.tier === 'pro' ? 'PRO' : 'FREE'}
+              <div className={`text-xs truncate font-[family-name:var(--font-mono)] ${
+                profile?.tier === 'admin' ? 'text-amber' : profile?.tier === 'pro' ? 'text-green' : 'text-text-dim'
+              }`}>
+                {(profile?.tier || 'free').toUpperCase()}
               </div>
             </div>
           </Link>
