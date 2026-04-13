@@ -112,9 +112,7 @@ export default async function TokensPage() {
 
         <div className="mb-5">
           <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">Claude Code (CLI)</div>
-          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`claude mcp add --transport http security-detections \\
-  https://detect.michaelhaag.org/api/mcp/http \\
-  --header "Authorization: Bearer sdmcp_..."`}</pre>
+          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`claude mcp add --transport http security-detections https://detect.michaelhaag.org/api/mcp/http --header "Authorization: Bearer sdmcp_..."`}</pre>
         </div>
 
         <div className="mb-5">
