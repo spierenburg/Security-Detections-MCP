@@ -133,18 +133,12 @@ export default async function TokensPage() {
 
         <div className="mb-5">
           <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">OpenAI Codex (CLI)</div>
-          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`codex mcp add security-detections \\
-  --transport http https://detect.michaelhaag.org/api/mcp/http \\
-  --header "Authorization: Bearer sdmcp_..."`}</pre>
+          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`codex mcp add security-detections --transport http https://detect.michaelhaag.org/api/mcp/http --header "Authorization: Bearer sdmcp_..."`}</pre>
         </div>
 
         <div>
           <div className="text-amber font-[family-name:var(--font-mono)] text-xs font-bold mb-2">Test with curl</div>
-          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`curl -X POST https://detect.michaelhaag.org/api/mcp/http \\
-  -H "Authorization: Bearer sdmcp_..." \\
-  -H "Accept: application/json, text/event-stream" \\
-  -H "Content-Type: application/json" \\
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`}</pre>
+          <pre className="bg-bg2 border border-border rounded p-3 overflow-x-auto text-xs font-[family-name:var(--font-mono)] text-text">{`curl -X POST https://detect.michaelhaag.org/api/mcp/http -H "Authorization: Bearer sdmcp_..." -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`}</pre>
         </div>
       </div>
     </div>
