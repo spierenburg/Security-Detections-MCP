@@ -1,10 +1,43 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getModelConfig, getRateLimit } from '@/lib/ai/router';
+import { getModelConfig, getModelRoutingInfo, getRateLimit } from '@/lib/ai/router';
 import { buildSystemPrompt } from '@/lib/ai/system-prompt';
 import { AI_TOOLS } from '@/lib/ai/tools';
 import { executeToolCall } from '@/lib/ai/tool-executor';
+
+export async function GET() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const serviceClient = await createServiceClient();
+    const { data: profile } = await serviceClient
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    const modelInfo = getModelRoutingInfo(profile);
+    return Response.json({
+      provider: modelInfo.provider,
+      source: modelInfo.source,
+      model: modelInfo.model,
+      label: modelInfo.modelLabel,
+      note: modelInfo.note,
+      fallback_models: modelInfo.fallbackModels ?? [],
+    });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,7 +121,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const modelInfo = getModelRoutingInfo(profile);
     const modelConfig = getModelConfig(profile);
+    let modelUsed = modelInfo.model;
     const isFree = profile?.tier !== 'pro' && profile?.tier !== 'admin' && !profile?.claude_api_key_encrypted && !profile?.openai_api_key_encrypted && !profile?.openrouter_api_key_encrypted;
 
     // For free tier: pre-fetch relevant data and inject into context (free models don't support tool calling)
@@ -126,12 +161,16 @@ Write a brief 2-3 sentence analysis of this data. Focus on: what looks good, wha
           const data = await response.json();
           if (!data.error && data.choices?.[0]?.message?.content) {
             aiAnalysis = data.choices[0].message.content;
+            modelUsed = freeModel;
             break;
           }
         }
 
         // Combine: data report first (always accurate), then AI analysis
         content = dataReport + (aiAnalysis ? `\n\n---\n\n**Analysis**\n\n${aiAnalysis}` : '');
+        if (!aiAnalysis) {
+          modelUsed = 'db-only';
+        }
       } else {
         // General/conversational query — use AI with context
         const contextData = await prefetchContext(lastUserMsg);
@@ -152,6 +191,7 @@ Write a brief 2-3 sentence analysis of this data. Focus on: what looks good, wha
           const data = await response.json();
           if (!data.error) {
             responseData = data;
+            modelUsed = freeModel;
             break;
           }
         }
@@ -243,6 +283,11 @@ Write a brief 2-3 sentence analysis of this data. Focus on: what looks good, wha
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
+        'X-Model-Provider': modelInfo.provider,
+        'X-Model-Source': modelInfo.source,
+        'X-Model-Selected': modelInfo.model,
+        'X-Model-Used': modelUsed,
+        'X-Model-Label': modelInfo.modelLabel,
       },
     });
   } catch (error) {

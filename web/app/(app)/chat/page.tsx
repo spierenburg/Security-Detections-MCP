@@ -16,16 +16,28 @@ interface Conversation {
   updated_at: string;
 }
 
+interface ModelStatus {
+  provider: string;
+  source: string;
+  model: string;
+  label: string;
+  note?: string;
+  fallback_models?: string[];
+  used_model?: string;
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
   useEffect(() => {
+    loadModelStatus();
     loadConversations();
     const params = new URLSearchParams(window.location.search);
     const convId = params.get('c');
@@ -59,6 +71,17 @@ export default function ChatPage() {
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })));
+    }
+  }
+
+  async function loadModelStatus() {
+    try {
+      const response = await fetch('/api/chat', { method: 'GET' });
+      if (!response.ok) return;
+      const data = await response.json();
+      setModelStatus(data);
+    } catch {
+      // Non-fatal: model badge will stay unset.
     }
   }
 
@@ -121,6 +144,24 @@ export default function ChatPage() {
           })),
         }),
       });
+
+      const modelProvider = response.headers.get('X-Model-Provider');
+      const modelSource = response.headers.get('X-Model-Source');
+      const modelSelected = response.headers.get('X-Model-Selected');
+      const modelUsed = response.headers.get('X-Model-Used');
+      const modelLabel = response.headers.get('X-Model-Label');
+
+      if (modelProvider && modelSource && modelSelected && modelLabel) {
+        setModelStatus(prev => ({
+          provider: modelProvider,
+          source: modelSource,
+          model: modelSelected,
+          label: modelLabel,
+          note: prev?.note,
+          fallback_models: prev?.fallback_models,
+          used_model: modelUsed || modelSelected,
+        }));
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -185,6 +226,18 @@ export default function ChatPage() {
     }
   }
 
+  function sourceLabel(source?: string): string {
+    switch (source) {
+      case 'byok-claude': return 'BYOK Claude';
+      case 'byok-openai': return 'BYOK OpenAI';
+      case 'byok-openrouter': return 'BYOK OpenRouter';
+      case 'pro': return 'Pro';
+      case 'admin': return 'Admin';
+      case 'free': return 'Free';
+      default: return 'Unknown';
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] max-w-6xl mx-auto gap-4">
       {/* Chat history sidebar */}
@@ -220,6 +273,28 @@ export default function ChatPage() {
 
       {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
+        <div className="mb-3 bg-card border border-border rounded-[var(--radius-card)] px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-text-dim text-xs uppercase font-[family-name:var(--font-mono)] tracking-wider">Active AI Model</span>
+            <span className="text-text text-sm font-semibold">
+              {modelStatus?.used_model === 'db-only'
+                ? 'Database-only (no LLM used)'
+                : (modelStatus?.label || 'Detecting...')}
+            </span>
+            <span className="text-amber text-xs font-[family-name:var(--font-mono)]">
+              {modelStatus ? sourceLabel(modelStatus.source) : ''}
+            </span>
+          </div>
+          {modelStatus?.used_model && modelStatus.used_model !== 'db-only' && modelStatus.used_model !== modelStatus.model && (
+            <p className="text-text-dim text-xs mt-1">
+              Last response used fallback model: <code className="text-amber">{modelStatus.used_model}</code>
+            </p>
+          )}
+          {modelStatus?.note && (
+            <p className="text-text-dim text-xs mt-1">{modelStatus.note}</p>
+          )}
+        </div>
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 pb-4">
           {messages.length === 0 && (

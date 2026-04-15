@@ -5,12 +5,29 @@ export interface ModelConfig {
   baseUrl: string;
 }
 
-interface UserProfile {
+export type ModelSource =
+  | 'byok-claude'
+  | 'byok-openai'
+  | 'byok-openrouter'
+  | 'pro'
+  | 'admin'
+  | 'free';
+
+export interface UserProfile {
   tier: string;
   preferred_model: string;
   openrouter_api_key_encrypted: string | null;
   claude_api_key_encrypted: string | null;
   openai_api_key_encrypted: string | null;
+}
+
+export interface ModelRoutingInfo {
+  source: ModelSource;
+  provider: 'openrouter' | 'anthropic' | 'openai';
+  model: string;
+  modelLabel: string;
+  note?: string;
+  fallbackModels?: string[];
 }
 
 // Free tier models — ordered by quality for instruction following + context fidelity
@@ -34,54 +51,109 @@ const PRO_MODELS: Record<string, string> = {
 // Import decrypt — this module is only used server-side (chat API route)
 import { decrypt } from '@/lib/crypto';
 
-export function getModelConfig(profile: UserProfile | null): ModelConfig {
+const MODEL_LABELS: Record<string, string> = {
+  'claude-sonnet-4-6-20250514': 'Claude Sonnet 4.6',
+  'anthropic/claude-sonnet-4-6': 'Claude Sonnet 4.6',
+  'anthropic/claude-opus-4-6': 'Claude Opus 4.6',
+  'gpt-5.4': 'GPT-5.4',
+  'openai/gpt-5.4': 'GPT-5.4',
+  'openai/gpt-5.3-codex': 'GPT-5.3 Codex',
+  'nvidia/nemotron-3-super-120b-a12b:free': 'Nemotron 3 Super 120B (Free)',
+  'nousresearch/hermes-3-llama-3.1-405b:free': 'Hermes 3 Llama 405B (Free)',
+  'meta-llama/llama-3.3-70b-instruct:free': 'Llama 3.3 70B Instruct (Free)',
+  'openai/gpt-oss-120b:free': 'GPT-OSS 120B (Free)',
+};
 
-  // BYOK: User has their own Claude API key
+function getModelLabel(model: string): string {
+  return MODEL_LABELS[model] || model;
+}
+
+export function getModelRoutingInfo(profile: UserProfile | null): ModelRoutingInfo {
   if (profile?.claude_api_key_encrypted) {
     return {
+      source: 'byok-claude',
       provider: 'anthropic',
       model: 'claude-sonnet-4-6-20250514',
-      apiKey: decrypt(profile.claude_api_key_encrypted),
+      modelLabel: getModelLabel('claude-sonnet-4-6-20250514'),
+      note: 'Using your Claude API key',
+    };
+  }
+
+  if (profile?.openai_api_key_encrypted) {
+    return {
+      source: 'byok-openai',
+      provider: 'openai',
+      model: 'gpt-5.4',
+      modelLabel: getModelLabel('gpt-5.4'),
+      note: 'Using your OpenAI API key',
+    };
+  }
+
+  if (profile?.openrouter_api_key_encrypted) {
+    const model = PRO_MODELS[profile.preferred_model] || PRO_MODELS['auto'];
+    return {
+      source: 'byok-openrouter',
+      provider: 'openrouter',
+      model,
+      modelLabel: getModelLabel(model),
+      note: 'Using your OpenRouter API key',
+    };
+  }
+
+  if (profile?.tier === 'pro' || profile?.tier === 'admin') {
+    const model = PRO_MODELS[profile.preferred_model] || PRO_MODELS['auto'];
+    return {
+      source: profile.tier === 'admin' ? 'admin' : 'pro',
+      provider: 'openrouter',
+      model,
+      modelLabel: getModelLabel(model),
+      note: 'Using app-managed frontier model routing',
+    };
+  }
+
+  return {
+    source: 'free',
+    provider: 'openrouter',
+    model: FREE_MODEL,
+    modelLabel: getModelLabel(FREE_MODEL),
+    note: 'Free tier uses automatic fallback across free models',
+    fallbackModels: FREE_MODELS,
+  };
+}
+
+export function getModelConfig(profile: UserProfile | null): ModelConfig {
+  const routing = getModelRoutingInfo(profile);
+
+  if (routing.source === 'byok-claude') {
+    return {
+      provider: 'anthropic',
+      model: routing.model,
+      apiKey: decrypt(profile!.claude_api_key_encrypted!),
       baseUrl: 'https://api.anthropic.com/v1',
     };
   }
 
-  // BYOK: User has their own OpenAI API key
-  if (profile?.openai_api_key_encrypted) {
+  if (routing.source === 'byok-openai') {
     return {
       provider: 'openai',
-      model: 'gpt-5.4',
-      apiKey: decrypt(profile.openai_api_key_encrypted),
+      model: routing.model,
+      apiKey: decrypt(profile!.openai_api_key_encrypted!),
       baseUrl: 'https://api.openai.com/v1',
     };
   }
 
-  // BYOK: User has their own OpenRouter API key
-  if (profile?.openrouter_api_key_encrypted) {
-    const model = PRO_MODELS[profile.preferred_model] || PRO_MODELS['auto'];
+  if (routing.source === 'byok-openrouter') {
     return {
       provider: 'openrouter',
-      model,
-      apiKey: decrypt(profile.openrouter_api_key_encrypted),
+      model: routing.model,
+      apiKey: decrypt(profile!.openrouter_api_key_encrypted!),
       baseUrl: 'https://openrouter.ai/api/v1',
     };
   }
 
-  // Pro/Admin tier: use app's OpenRouter key with frontier models
-  if (profile?.tier === 'pro' || profile?.tier === 'admin') {
-    const model = PRO_MODELS[profile.preferred_model] || PRO_MODELS['auto'];
-    return {
-      provider: 'openrouter',
-      model,
-      apiKey: process.env.OPENROUTER_API_KEY!,
-      baseUrl: 'https://openrouter.ai/api/v1',
-    };
-  }
-
-  // Free tier: OpenRouter free smart router
   return {
     provider: 'openrouter',
-    model: FREE_MODEL,
+    model: routing.model,
     apiKey: process.env.OPENROUTER_API_KEY!,
     baseUrl: 'https://openrouter.ai/api/v1',
   };
