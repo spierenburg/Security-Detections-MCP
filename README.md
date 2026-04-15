@@ -87,6 +87,41 @@ export SDMCP_TOKEN="sdmcp_YOUR_TOKEN_HERE" && codex mcp add security-detections 
 
 See the [Hosted MCP Setup Guide](./docs/HOSTED_MCP.md) for the full table of clients, the complete tool inventory, and troubleshooting tips.
 
+## AI Model Routing (Web App)
+
+The web chat supports Free, Pro/Admin, and BYOK (Bring Your Own Key) routing. You can also see the active model at the top of the chat UI.
+
+### Free Tier (default)
+
+- Default model: `nvidia/nemotron-3-super-120b-a12b:free`
+- Automatic fallback order if the first model is busy:
+  1. `nvidia/nemotron-3-super-120b-a12b:free`
+  2. `nousresearch/hermes-3-llama-3.1-405b:free`
+  3. `meta-llama/llama-3.3-70b-instruct:free`
+  4. `openai/gpt-oss-120b:free`
+
+### Pro/Admin (no BYOK key set)
+
+Uses app-managed OpenRouter routing with your **Preferred Model** setting in `/account`:
+
+| Preferred Model | Routed model |
+|---|---|
+| `auto` | `anthropic/claude-sonnet-4-6` |
+| `claude` | `anthropic/claude-sonnet-4-6` |
+| `claude-opus` | `anthropic/claude-opus-4-6` |
+| `gpt` | `openai/gpt-5.4` |
+| `gpt-codex` | `openai/gpt-5.3-codex` |
+
+### BYOK behavior (takes precedence over tier routing)
+
+If you set your own API key(s), routing priority is:
+
+1. Claude key (`sk-ant-...`) -> `claude-sonnet-4-6-20250514` via Anthropic
+2. OpenAI key (`sk-...`) -> `gpt-5.4` via OpenAI
+3. OpenRouter key (`sk-or-...`) -> uses the same Preferred Model mapping table above
+
+If multiple keys are present, the first match in that order is used.
+
 ## Features
 
 - **8,200+ detections** across 6 formats — Sigma, Splunk ESCU, Elastic, KQL, Sublime, CrowdStrike CQL
