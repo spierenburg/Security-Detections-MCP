@@ -1,0 +1,21 @@
+# Security-Detections-MCP — rules refresher sidecar.
+# Clones/pulls detection-rule repos into a named volume on a schedule.
+# Built by .github/workflows/build.yml alongside the server image.
+
+FROM alpine:3.20
+
+RUN apk add --no-cache git bash curl tini coreutils findutils
+
+COPY refresh-rules.sh /usr/local/bin/refresh-rules.sh
+COPY refresher-entrypoint.sh /usr/local/bin/refresher-entrypoint.sh
+RUN chmod +x /usr/local/bin/refresh-rules.sh /usr/local/bin/refresher-entrypoint.sh
+
+ENV RULES_DIR=/rules \
+    REFRESH_INTERVAL_SECONDS=86400 \
+    REFRESH_JITTER_SECONDS=600 \
+    LAST_REFRESH_MARKER=/rules/.last-refresh
+
+VOLUME /rules
+WORKDIR /rules
+
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/refresher-entrypoint.sh"]
