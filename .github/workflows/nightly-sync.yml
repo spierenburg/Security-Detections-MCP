@@ -1,8 +1,12 @@
 name: Nightly Detection Sync
 
 on:
-  schedule:
-    - cron: '0 3 * * *'
+  # Schedule disabled while no Supabase backend is configured for this repo
+  # (SUPABASE_URL / SUPABASE_SERVICE_KEY secrets are unset, so the job exits 1
+  # on every nightly run). Re-add the `schedule:` block when a Supabase
+  # project is reconnected.
+  # schedule:
+  #   - cron: '0 3 * * *'
   workflow_dispatch:
 
 jobs:
