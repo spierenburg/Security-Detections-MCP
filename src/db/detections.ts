@@ -554,6 +554,8 @@ export function getStats(): IndexStats {
   const elastic = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'elastic'").get() as { count: number }).count;
   const kql = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'kql'").get() as { count: number }).count;
   const sublime = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'sublime'").get() as { count: number }).count;
+  const crowdstrikeCql = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'crowdstrike_cql'").get() as { count: number }).count;
+  const jamfProtect = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'jamf_protect'").get() as { count: number }).count;
 
   // Count by severity
   const severityRows = database.prepare(`
@@ -645,6 +647,8 @@ export function getStats(): IndexStats {
     elastic,
     kql,
     sublime,
+    crowdstrike_cql: crowdstrikeCql,
+    jamf_protect: jamfProtect,
     by_severity,
     by_logsource_product,
     mitre_coverage,
@@ -1606,7 +1610,15 @@ export function countDetectionsBySource(topic: string): Record<string, number> {
   
   const rows = stmt.all(topic) as { source_type: string; count: number }[];
   
-  const result: Record<string, number> = { sigma: 0, splunk_escu: 0, elastic: 0, kql: 0, sublime: 0, crowdstrike_cql: 0 };
+  const result: Record<string, number> = {
+    sigma: 0,
+    splunk_escu: 0,
+    elastic: 0,
+    kql: 0,
+    sublime: 0,
+    crowdstrike_cql: 0,
+    jamf_protect: 0,
+  };
   for (const row of rows) {
     result[row.source_type] = row.count;
   }

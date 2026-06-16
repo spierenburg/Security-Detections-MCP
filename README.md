@@ -181,7 +181,7 @@ git clone --depth 1 https://github.com/ByteRay-Labs/Query-Hub.git cql-hub
 | `search(query, limit)` | Full-text search across all detection fields |
 | `get_by_id(id)` | Get a single detection by ID |
 | `list_all(limit, offset)` | Paginated list of all detections |
-| `list_by_source(source_type)` | Filter by source (`sigma`, `splunk_escu`, `elastic`, `kql`, `sublime`, `crowdstrike_cql`) |
+| `list_by_source(source_type)` | Filter by source (`sigma`, `splunk_escu`, `elastic`, `kql`, `sublime`, `crowdstrike_cql`, `jamf_protect`) |
 | `get_stats()` | Index statistics |
 | `rebuild_index()` | Force re-index from configured paths |
 

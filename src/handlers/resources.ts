@@ -13,6 +13,21 @@ import {
   getKnowledgeStats,
 } from '../db/knowledge.js';
 
+const SOURCE_TYPES = ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql', 'jamf_protect'] as const;
+type SourceType = (typeof SOURCE_TYPES)[number];
+
+function countBySource(detections: Array<{ source_type: string }>): Record<SourceType, number> {
+  const counts = Object.fromEntries(SOURCE_TYPES.map(source => [source, 0])) as Record<SourceType, number>;
+
+  for (const detection of detections) {
+    if ((SOURCE_TYPES as readonly string[]).includes(detection.source_type)) {
+      counts[detection.source_type as SourceType]++;
+    }
+  }
+
+  return counts;
+}
+
 // =============================================================================
 // TYPE DEFINITIONS
 // =============================================================================
@@ -70,7 +85,7 @@ export const resources: ResourceDefinition[] = [
   {
     uri: 'detection://sources/comparison',
     name: 'Source Comparison',
-    description: 'Quick comparison of detection counts across sources (sigma, splunk, elastic, kql)',
+    description: 'Quick comparison of detection counts across all sources',
     mimeType: 'application/json',
   },
   // Knowledge graph resources
@@ -151,12 +166,7 @@ function getTechniqueResource(techniqueId: string): unknown {
       severity: d.severity,
       description: d.description?.substring(0, 200) + (d.description && d.description.length > 200 ? '...' : ''),
     })),
-    by_source: {
-      sigma: detections.filter(d => d.source_type === 'sigma').length,
-      splunk_escu: detections.filter(d => d.source_type === 'splunk_escu').length,
-      elastic: detections.filter(d => d.source_type === 'elastic').length,
-      kql: detections.filter(d => d.source_type === 'kql').length,
-    },
+    by_source: countBySource(detections),
   };
 }
 
@@ -284,12 +294,7 @@ function getStaticResourceContent(uri: string): unknown {
       const stats = getStats();
       return {
         total_detections: stats.total,
-        by_source: {
-          sigma: stats.sigma,
-          splunk_escu: stats.splunk_escu,
-          elastic: stats.elastic,
-          kql: stats.kql,
-        },
+        by_source: Object.fromEntries(SOURCE_TYPES.map(source => [source, stats[source]])),
         by_severity: stats.by_severity,
         mitre_coverage: stats.mitre_coverage,
         by_mitre_tactic: stats.by_mitre_tactic,

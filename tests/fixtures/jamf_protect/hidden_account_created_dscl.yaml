@@ -22,4 +22,3 @@ label: Hidden Account Created DSCL
 remediation: null
 MitreCategories:
   - Persistence
-
