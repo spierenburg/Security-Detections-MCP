@@ -46,6 +46,8 @@ import { requestAnalysis, getSamplingStatus } from '../../handlers/sampling.js';
 // Helper Functions
 // ============================================================================
 
+const SOURCE_TYPES = ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql', 'jamf_protect'] as const;
+
 /**
  * Format current timestamp for storage
  */
@@ -276,7 +278,7 @@ Use this for executive-level reporting on detection posture.`,
       const highPriorityTechniques = ['T1059.001', 'T1003.001', 'T1547.001', 'T1486', 'T1078'];
       const sourceStats: Record<string, number> = {};
 
-      for (const source of ['sigma', 'splunk_escu', 'elastic', 'kql'] as const) {
+      for (const source of SOURCE_TYPES) {
         const detections = listBySource(source, 9999);
         sourceStats[source] = detections.length;
       }
@@ -451,7 +453,7 @@ Use this to understand the strengths/weaknesses of different detection sources a
 
     ensureDynamicSchema();
 
-    const sources = ['sigma', 'splunk_escu', 'elastic', 'kql'] as const;
+    const sources = SOURCE_TYPES;
     
     // Get overall stats by source
     const sourceStats: Record<string, { total: number; coverage: CoverageReport }> = {};

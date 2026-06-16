@@ -31,6 +31,21 @@ import {
   getKnowledgeStats,
 } from '../db/knowledge.js';
 
+const SOURCE_TYPES = ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql', 'jamf_protect'] as const;
+type SourceType = (typeof SOURCE_TYPES)[number];
+
+function countBySource(detections: Array<{ source_type: string }>): Record<SourceType, number> {
+  const counts = Object.fromEntries(SOURCE_TYPES.map((source) => [source, 0])) as Record<SourceType, number>;
+
+  for (const detection of detections) {
+    if ((SOURCE_TYPES as readonly string[]).includes(detection.source_type)) {
+      counts[detection.source_type as SourceType]++;
+    }
+  }
+
+  return counts;
+}
+
 // =============================================================================
 // TYPE DEFINITIONS
 // =============================================================================
@@ -88,7 +103,7 @@ export const resources: ResourceDefinition[] = [
   {
     uri: 'detection://sources/comparison',
     name: 'Source Comparison',
-    description: 'Quick comparison of detection counts across sources (sigma, splunk, elastic, kql)',
+    description: 'Quick comparison of detection counts across all sources',
     mimeType: 'application/json',
   },
   // Navigator layer
@@ -139,7 +154,7 @@ export const resourceTemplates: ResourceTemplateDefinition[] = [
   {
     uriTemplate: 'detection://source/{sourceType}',
     name: 'Source Statistics',
-    description: 'Get statistics and detections for a specific source type (sigma, splunk_escu, elastic, kql)',
+    description: 'Get statistics and detections for a specific source type',
     mimeType: 'application/json',
   },
   {
@@ -157,7 +172,7 @@ export const resourceTemplates: ResourceTemplateDefinition[] = [
   {
     uriTemplate: 'detection://navigator/layer/{sourceType}',
     name: 'Source-Filtered Navigator Layer',
-    description: 'ATT&CK Navigator layer filtered by detection source (sigma, splunk_escu, elastic, kql, sublime, crowdstrike_cql)',
+    description: 'ATT&CK Navigator layer filtered by detection source',
     mimeType: 'application/json',
   },
   {
@@ -202,12 +217,7 @@ function getTechniqueResource(techniqueId: string): unknown {
         d.description?.substring(0, 200) +
         (d.description && d.description.length > 200 ? '...' : ''),
     })),
-    by_source: {
-      sigma: detections.filter((d) => d.source_type === 'sigma').length,
-      splunk_escu: detections.filter((d) => d.source_type === 'splunk_escu').length,
-      elastic: detections.filter((d) => d.source_type === 'elastic').length,
-      kql: detections.filter((d) => d.source_type === 'kql').length,
-    },
+    by_source: countBySource(detections),
   };
 }
 
@@ -243,12 +253,7 @@ function getTacticResource(tactic: string): unknown {
       severity: d.severity,
       mitre_ids: d.mitre_ids,
     })),
-    by_source: {
-      sigma: detections.filter((d) => d.source_type === 'sigma').length,
-      splunk_escu: detections.filter((d) => d.source_type === 'splunk_escu').length,
-      elastic: detections.filter((d) => d.source_type === 'elastic').length,
-      kql: detections.filter((d) => d.source_type === 'kql').length,
-    },
+    by_source: countBySource(detections),
   };
 }
 
@@ -256,10 +261,10 @@ function getTacticResource(tactic: string): unknown {
  * Get statistics and sample detections for a source type
  */
 function getSourceResource(sourceType: string): unknown {
-  const validSources = ['sigma', 'splunk_escu', 'elastic', 'kql', 'sublime', 'crowdstrike_cql'];
+  const validSources = [...SOURCE_TYPES];
   const normalizedSource = sourceType.toLowerCase();
 
-  if (!validSources.includes(normalizedSource)) {
+  if (!(validSources as readonly string[]).includes(normalizedSource)) {
     return {
       error: `Invalid source type: ${sourceType}`,
       valid_sources: validSources,
@@ -267,7 +272,7 @@ function getSourceResource(sourceType: string): unknown {
   }
 
   const detections = listBySource(
-    normalizedSource as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
+    normalizedSource as SourceType,
     50
   );
 
@@ -471,12 +476,7 @@ function getStaticResourceContent(uri: string): unknown {
       const stats = getStats();
       return {
         total_detections: stats.total,
-        by_source: {
-          sigma: stats.sigma,
-          splunk_escu: stats.splunk_escu,
-          elastic: stats.elastic,
-          kql: stats.kql,
-        },
+        by_source: Object.fromEntries(SOURCE_TYPES.map((source) => [source, stats[source]])),
         by_severity: stats.by_severity,
         mitre_coverage: stats.mitre_coverage,
         by_mitre_tactic: stats.by_mitre_tactic,
@@ -582,7 +582,7 @@ export async function readResource(uri: string) {
   // Navigator layer template: detection://navigator/layer/{sourceType}
   const navigatorMatch = uri.match(/^detection:\/\/navigator\/layer\/(.+)$/);
   if (navigatorMatch) {
-    const sourceType = decodeURIComponent(navigatorMatch[1]) as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql';
+    const sourceType = decodeURIComponent(navigatorMatch[1]) as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql' | 'jamf_protect';
     content = generateNavigatorLayer({ name: `${sourceType} Detection Coverage`, source_type: sourceType });
     return formatResourceResponse(uri, mimeType, content);
   }
