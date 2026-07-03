@@ -1,5 +1,8 @@
 # Security Detections MCP
 
+> **Status (2026-07-03): Maintenance mode — no active feature development.**
+> Parked after the 2026-04-14 strategic pivot. The MCP server remains deployed and in active use (e.g. the /coverage skill queries it); security and dependency bumps only.
+
 An MCP (Model Context Protocol) server that lets LLMs query a unified database of **Sigma**, **Splunk ESCU**, **Elastic**, **KQL**, **Sublime**, and **CrowdStrike CQL** security detection rules.
 
 > **New here? Start with the [Setup Guide](./SETUP.md)** -- covers macOS, Windows (WSL & native), and Linux step by step.
