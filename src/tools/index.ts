@@ -11,6 +11,7 @@ import { dynamicTools } from './dynamic/index.js';
 import { knowledgeTools, knowledgeToolCount } from './knowledge/index.js';
 import { autonomousTools, autonomousToolCount } from './autonomous/index.js';
 import { engineeringTools, engineeringToolCount } from './engineering/index.js';
+import { detectionContextTools, detectionContextToolCount } from './context/index.js';
 
 import { toolRegistry } from './registry.js';
 
@@ -27,6 +28,7 @@ export { dynamicTools } from './dynamic/index.js';
 export { knowledgeTools, knowledgeToolCount } from './knowledge/index.js';
 export { autonomousTools, autonomousToolCount } from './autonomous/index.js';
 export { engineeringTools, engineeringToolCount } from './engineering/index.js';
+export { detectionContextTools, detectionContextToolCount } from './context/index.js';
 
 export function registerAllTools(): void {
   // Register all tool modules
@@ -38,6 +40,7 @@ export function registerAllTools(): void {
   toolRegistry.registerAll(knowledgeTools);
   toolRegistry.registerAll(autonomousTools);
   toolRegistry.registerAll(engineeringTools);
+  toolRegistry.registerAll(detectionContextTools);
   
   console.error(`[tools] Registry initialized with ${toolRegistry.count()} tools`);
   console.error(`[tools] - Detections: ${detectionToolCounts.total}`);
@@ -48,6 +51,7 @@ export function registerAllTools(): void {
   console.error(`[tools] - Knowledge: ${knowledgeToolCount}`);
   console.error(`[tools] - Autonomous: ${autonomousToolCount}`);
   console.error(`[tools] - Engineering: ${engineeringToolCount}`);
+  console.error(`[tools] - Context: ${detectionContextToolCount}`);
 }
 
 export function getToolsSummary(): { total: number; names: string[]; byModule: Record<string, number> } {
@@ -63,6 +67,7 @@ export function getToolsSummary(): { total: number; names: string[]; byModule: R
       knowledge: knowledgeToolCount,
       autonomous: autonomousToolCount,
       engineering: engineeringToolCount,
+      context: detectionContextToolCount,
     },
   };
 }
