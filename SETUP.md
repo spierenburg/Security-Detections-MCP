@@ -489,12 +489,12 @@ Once you're set up:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Security Detections MCP v3.1                   │
+│                    Security Detections MCP v3.2                   │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  MCP Server (root)              Autonomous Pipeline (agents/)    │
 │  ┌─────────────────────┐       ┌────────────────────────────┐   │
-│  │ 71+ tools            │       │ LangGraph workflow          │   │
+│  │ 81 tools             │       │ LangGraph workflow          │   │
 │  │ 11 prompts           │       │ CTI → Coverage → Detect →  │   │
 │  │ 8,200+ detections    │◄─────►│ Atomic → Validate → PR     │   │
 │  │ SQLite FTS5 index    │       │                            │   │

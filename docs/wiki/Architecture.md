@@ -49,14 +49,14 @@ The database layer consists of:
 
 The system implements a **plugin-style tool registry** that allows modular tool registration. Tools are organized into categories:
 
-- **Detection Tools**: Search, filter, and analyze detections (30+ tools)
-- **Story Tools**: Manage and search analytic stories
-- **Engineering Tools**: Pattern extraction, template generation, field references
-- **Knowledge Graph Tools**: Entity/relation management, decision logging, learning storage
-- **Autonomous Tools**: Automated analysis and gap identification
-- **Dynamic Tools**: LLM-created tables for custom storage
-- **Cache Tools**: Query result caching and template management
-- **Meta Tools**: System statistics and health checks
+- **Detection Tools** (37): Search, filter, and analyze detections — including actor coverage, procedure-level coverage, and Navigator layer export
+- **Story Tools** (4): Manage and search analytic stories
+- **Engineering Tools** (8): Pattern extraction, template suggestions, field references, feedback learning
+- **Knowledge Graph Tools** (12): Entity/relation management, decision logging, learning storage
+- **Autonomous Tools** (5): Automated analysis, gap identification, LLM sampling
+- **Dynamic Tools** (6): LLM-created tables for custom storage
+- **Cache Tools** (4): Query result caching and index rebuild
+- **Meta Tools** (5): Reusable query template management
 
 All tools are registered with the central `ToolRegistry` singleton and exposed via the MCP protocol.
 
@@ -91,7 +91,7 @@ graph TB
     subgraph Core[MCP Core]
         Indexer[Indexer<br/>Parser Pipeline]
         DB[(SQLite DB<br/>FTS5 Search)]
-        ToolRegistry[Tool Registry<br/>69+ Tools]
+        ToolRegistry[Tool Registry<br/>81 Tools]
     end
     
     subgraph Intelligence[Detection Engineering Intelligence]
@@ -852,17 +852,18 @@ sequenceDiagram
 
 ## Tool Categories
 
-The system provides **69+ tools** organized into 8 categories:
+The system provides **81 tools** organized into 8 categories:
 
-### 1. Detection Search & Filters (30+ tools)
+### 1. Detection Search & Filters (34 tools)
 
 **Search Tools:**
 - `search` - Full-text search across all detection fields
 - `get_by_id` - Get detection by UUID
+- `get_raw_yaml` - Get the original rule content
 - `list_all` - List all detections with pagination
 
 **Filter Tools:**
-- `list_by_source` - Filter by source type (sigma, splunk_escu, elastic, kql)
+- `list_by_source` - Filter by source type (sigma, splunk_escu, elastic, kql, sublime, crowdstrike_cql)
 - `list_by_mitre` - Filter by MITRE technique ID
 - `list_by_mitre_tactic` - Filter by MITRE tactic
 - `list_by_severity` - Filter by severity
@@ -873,6 +874,7 @@ The system provides **69+ tools** organized into 8 categories:
 - `list_by_logsource` - Filter by Sigma logsource
 - `list_by_process_name` - Filter by process name
 - `list_by_name_pattern` - Filter by name pattern
+- `list_by_kql_category` / `list_by_kql_tag` / `list_by_kql_datasource` - KQL-specific filters
 
 **Analysis Tools:**
 - `analyze_coverage` - Analyze MITRE coverage
@@ -884,15 +886,18 @@ The system provides **69+ tools** organized into 8 categories:
 - `get_top_gaps` - Get top coverage gaps
 - `get_technique_count` - Count detections per technique
 - `get_technique_ids` - List all MITRE techniques covered
+- `generate_navigator_layer` - Export ATT&CK Navigator layer JSON
+- `analyze_procedure_coverage` / `compare_procedure_coverage` - Procedure-level coverage analysis
+- `analyze_actor_coverage` / `compare_actor_coverage` / `get_actor_profile` / `list_actors` - Threat actor coverage (STIX-based)
 
-### 2. Story Tools (5+ tools)
+### 2. Story Tools (4 tools)
 
 - `get_story` - Get analytic story by ID
 - `list_stories` - List all stories
 - `list_stories_by_category` - Filter stories by category
 - `search_stories` - Full-text search stories
 
-### 3. Engineering Tools (10+ tools)
+### 3. Engineering Tools (8 tools)
 
 **Pattern Tools:**
 - `extract_patterns` - Extract patterns from all detections
@@ -902,8 +907,9 @@ The system provides **69+ tools** organized into 8 categories:
 - `suggest_detection_template` - Generate detection template
 - `find_similar_detections` - Find similar detections
 - `generate_rba_structure` - Generate RBA structure
+- `learn_from_feedback` - Store user feedback for pattern learning
 
-### 4. Knowledge Graph Tools (10+ tools)
+### 4. Knowledge Graph Tools (12 tools)
 
 **Entity Management:**
 - `create_entity` - Create knowledge entity
@@ -923,13 +929,15 @@ The system provides **69+ tools** organized into 8 categories:
 - `add_observation` - Add observation about entity
 - `delete_observation` - Delete observation
 
-### 5. Autonomous Tools (5+ tools)
+### 5. Autonomous Tools (5 tools)
 
 - `auto_analyze_coverage` - Automated coverage analysis
 - `auto_gap_report` - Automated gap report generation
 - `auto_compare_sources` - Automated source comparison
+- `llm_enhanced_analysis` - LLM-enhanced analysis via MCP sampling
+- `check_sampling_status` - Check MCP sampling availability
 
-### 6. Dynamic Tools (5+ tools)
+### 6. Dynamic Tools (6 tools)
 
 - `create_table` - Create custom table
 - `insert_row` - Insert row into custom table
@@ -938,13 +946,15 @@ The system provides **69+ tools** organized into 8 categories:
 - `describe_table` - Describe table schema
 - `drop_table` - Drop custom table
 
-### 7. Cache Tools (3+ tools)
+### 7. Cache & Template Tools (9 tools)
 
 - `save_query` - Save query result
 - `get_saved_query` - Get saved query
 - `list_saved_queries` - List saved queries
+- `rebuild_index` - Force re-index from configured paths
+- `save_template` / `run_template` / `list_templates` / `get_template` / `delete_template` - Reusable query templates
 
-### 8. Meta Tools (3+ tools)
+### 8. Meta Tools (3 tools)
 
 - `get_stats` - Get system statistics
 - `get_detection_list` - Get detection list summary
@@ -954,42 +964,42 @@ The system provides **69+ tools** organized into 8 categories:
 
 ```mermaid
 graph TB
-    subgraph Detection[Detection Tools<br/>30+ tools]
+    subgraph Detection[Detection Tools<br/>34 tools]
         Search[Search Tools<br/>search, get_by_id, list_all]
         Filter[Filter Tools<br/>list_by_mitre, list_by_source, etc.]
-        Analysis[Analysis Tools<br/>analyze_coverage, identify_gaps]
+        Analysis[Analysis Tools<br/>analyze_coverage, identify_gaps, actor & procedure coverage]
     end
     
-    subgraph Story[Story Tools<br/>5+ tools]
+    subgraph Story[Story Tools<br/>4 tools]
         StoryOps[Story Operations<br/>get_story, list_stories, search_stories]
     end
     
-    subgraph Engineering[Engineering Tools<br/>10+ tools]
+    subgraph Engineering[Engineering Tools<br/>8 tools]
         Patterns[Pattern Extraction<br/>extract_patterns, get_query_patterns]
         Templates[Template Generation<br/>suggest_detection_template]
         Fields[Field Reference<br/>get_field_reference, get_macro_reference]
     end
     
-    subgraph Knowledge[Knowledge Graph Tools<br/>10+ tools]
+    subgraph Knowledge[Knowledge Graph Tools<br/>12 tools]
         Entities[Entity Management<br/>create_entity, open_entity]
         Relations[Relation Management<br/>create_relation, search_knowledge]
         Decisions[Decision Logging<br/>log_decision, get_relevant_decisions]
         Learnings[Learning Storage<br/>add_learning, get_learnings]
     end
     
-    subgraph Autonomous[Autonomous Tools<br/>5+ tools]
+    subgraph Autonomous[Autonomous Tools<br/>5 tools]
         Auto[Automated Analysis<br/>auto_analyze_coverage, auto_gap_report]
     end
     
-    subgraph Dynamic[Dynamic Tools<br/>5+ tools]
+    subgraph Dynamic[Dynamic Tools<br/>6 tools]
         Tables[Custom Tables<br/>create_table, query_table]
     end
     
-    subgraph Cache[Cache Tools<br/>3+ tools]
-        QueryCache[Query Caching<br/>save_query, get_saved_query]
+    subgraph Cache[Cache & Template Tools<br/>9 tools]
+        QueryCache[Query Caching & Templates<br/>save_query, run_template]
     end
     
-    subgraph Meta[Meta Tools<br/>3+ tools]
+    subgraph Meta[Meta Tools<br/>3 tools]
         Stats[Statistics<br/>get_stats, count_by_source]
     end
     
