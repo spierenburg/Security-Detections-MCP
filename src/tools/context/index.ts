@@ -1,41 +1,53 @@
-// Context tools - detection-as-prompt compiler
+// Context tools - detection-as-prompt compiler (v1.1)
 //
 // compile_detection_context turns a corpus detection (rule logic) into the typed
 // investigative-context object that an agentic SOC's intake/context-assembly
-// stage ingests at alert time.
+// stage ingests. v1.1 aligns the output to cognitive-soc's detection-judgment
+// corpus (JudgmentDoc): see cognitive-soc/docs/contracts/detection-as-prompt.md.
 //
-// The REUSABLE half (threat model, FP shape, investigation goals) is derived from
-// the corpus + ATT&CK siblings. The ENVIRONMENT half (behavioral baselines, prior
-// investigation outcomes, asset criticality, tenant scope) is typed-but-empty by
-// construction: the compiler creates the slot, it never fabricates the content.
-// completeness + warnings make the missing half visible to the consumer.
+// The REUSABLE half (threat model, risk criteria, investigation goals) is derived
+// from the corpus + ATT&CK siblings. The ENVIRONMENT half (baselines, prior
+// outcomes, asset criticality, tenant scope) is typed-but-empty by construction:
+// the compiler creates the slot, never fabricates the content. completeness +
+// warnings make the missing half visible.
 
 import { defineTool, type ToolDefinition } from '../registry.js';
 import { getDetectionById, listByMitre } from '../../db/index.js';
 import { requestSampling } from '../../handlers/sampling.js';
 
 // ---------------------------------------------------------------------------
-// Output contract consumed by the downstream SOC. Versioned - bump on change.
+// Output contract. Mirrors cognitive-soc JudgmentDoc field shapes so a thin
+// consumer-side adapter maps it 1:1. Versioned - bump on change.
 // ---------------------------------------------------------------------------
+export interface ThreatModel {
+  adversary_behavior: string;   // what the detection looks for, in adversary terms
+  why_it_matters: string;       // impact when the behavior is real
+  legitimate_pattern: string;   // the same observable when benign (FP surface)
+  mitre_techniques: string[];
+}
+
+export interface RiskCriteria {
+  malicious_indicators: string[];
+  benign_indicators: string[];
+  required_corroboration: string[];
+  false_positive_callouts: string[];
+}
+
 export interface DetectionContext {
-  schema_version: '1.0';
+  schema_version: '1.1';
   detection_id: string;
   source_type: string;
   name: string;
 
   // Investigative-prompt half (the point of the compiler)
-  threat_model_statement: string;      // what adversary behavior, why it matters
-  what_legitimate_looks_like: string;  // benign shape - kills false positives
-  risk_criteria: string[];             // conditions that raise/lower severity
-  investigation_goals: string[];       // what must be established
-  escalation_criteria: string[];       // when this becomes an incident
-  hunt_pivots: string[];               // next queries/entities to pivot on
-  data_requirements: string[];         // telemetry the investigation needs
+  threat_model: ThreatModel;
+  risk_criteria: RiskCriteria;
+  investigation_goals: string[];
+  enrichment_sources: string[];
 
   // ATT&CK grounding + provenance join keys
-  mitre_techniques: string[];
   mitre_tactics: string[];
-  sibling_detection_ids: string[];     // other corpus rules for same technique(s)
+  sibling_detection_ids: string[];
 
   // Environment half - TYPED BUT EMPTY until the consuming SOC fills it.
   environment_context: {
@@ -50,22 +62,27 @@ export interface DetectionContext {
     corpus_fields_used: string[];
     model: string | null;
     generated_at: string;
+    // Suggested cognitive-soc JudgmentDoc content_status for this output.
+    // 'reference' only when the full judgment set is present; 'draft' otherwise.
+    // Never 'active' - that requires human review (schema.json active gate).
+    suggested_content_status: 'reference' | 'draft';
   };
-  completeness: number;                // 0..1 - < 1 signals unfilled env slots
+  completeness: number;
   warnings: string[];
 }
 
-// Only fields the handler actually reads from each detection record. Kept honest
-// so provenance.corpus_fields_used is a truthful audit trail.
+// Only fields the handler actually reads from each detection record.
 const CORPUS_FIELDS = ['description', 'falsepositives', 'data_sources', 'mitre_ids', 'mitre_tactics'];
 
-// Light projection of a sibling detection - just what the prompt/ids need, so we
-// don't retain full records (raw_yaml, query) across the sampling await.
 interface SiblingLite {
   id: string;
   name: string;
   description: string;
   falsepositives: string[];
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 function toStringArray(v: unknown): string[] {
@@ -85,7 +102,12 @@ function buildInvestigativePrompt(det: Record<string, unknown>, siblings: Siblin
 
   return [
     'Produce a machine-ingestable investigative-context object for the detection below.',
-    'Output STRICT JSON ONLY with exactly these keys: threat_model_statement (string), what_legitimate_looks_like (string), risk_criteria (string[]), investigation_goals (string[]), escalation_criteria (string[]), hunt_pivots (string[]).',
+    'Output STRICT JSON ONLY with exactly these keys:',
+    '  threat_model: { adversary_behavior: string, why_it_matters: string, legitimate_pattern: string },',
+    '  risk_criteria: { malicious_indicators: string[], benign_indicators: string[], required_corroboration: string[], false_positive_callouts: string[] },',
+    '  investigation_goals: string[]',
+    'adversary_behavior = what the detection looks for in adversary-action terms; why_it_matters = impact when real; legitimate_pattern = the same observable when benign.',
+    'risk_criteria lists are instance-level rubrics: malicious_indicators raise risk, benign_indicators lower it, required_corroboration is what must be checked, false_positive_callouts are known benign causes.',
     'Do NOT invent environment-specific facts (behavioral baselines, asset criticality, tenant scope) - those are supplied by the caller, not you.',
     '',
     `DETECTION: ${String(det.name ?? '')}`,
@@ -101,7 +123,6 @@ function buildInvestigativePrompt(det: Record<string, unknown>, siblings: Siblin
 }
 
 function tryParseJson(text: string): Record<string, unknown> | null {
-  // Tolerate models that wrap JSON in prose or fenced code blocks.
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : text;
   const start = candidate.indexOf('{');
@@ -128,10 +149,8 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
   const useSampling = args.use_sampling !== false;
   const techniques = toStringArray(det.mitre_ids);
 
-  // Gather ATT&CK siblings - the accumulated investigation/FP wisdom for the
-  // same technique(s). Project to a light shape immediately so full records
-  // (raw_yaml, query) don't linger across the sampling await. Cap breadth so a
-  // broad technique (e.g. T1078.004 ~ 153 rules) doesn't blow up the prompt.
+  // Gather ATT&CK siblings, projected to a light shape so full records
+  // (raw_yaml, query) don't linger across the sampling await. Cap breadth.
   const seen = new Set<string>([detectionId]);
   const siblings: SiblingLite[] = [];
   for (const t of techniques.slice(0, 3)) {
@@ -154,19 +173,26 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
   const warnings: string[] = [];
 
   const ctx: DetectionContext = {
-    schema_version: '1.0',
+    schema_version: '1.1',
     detection_id: detectionId,
     source_type: String(det.source_type ?? ''),
     name: String(det.name ?? ''),
-    // Deterministic floor - always populated from corpus fields.
-    threat_model_statement: String(det.description ?? ''),
-    what_legitimate_looks_like: toStringArray(det.falsepositives).join('; '),
-    risk_criteria: [],
+    // Deterministic floor from corpus fields. why_it_matters + the four-list
+    // risk criteria + investigation_goals are sampling-only (never invented).
+    threat_model: {
+      adversary_behavior: String(det.description ?? ''),
+      why_it_matters: '',
+      legitimate_pattern: toStringArray(det.falsepositives).join('; '),
+      mitre_techniques: techniques,
+    },
+    risk_criteria: {
+      malicious_indicators: [],
+      benign_indicators: [],
+      required_corroboration: [],
+      false_positive_callouts: [],
+    },
     investigation_goals: [],
-    escalation_criteria: [],
-    hunt_pivots: [],
-    data_requirements: toStringArray(det.data_sources),
-    mitre_techniques: techniques,
+    enrichment_sources: toStringArray(det.data_sources),
     mitre_tactics: toStringArray(det.mitre_tactics),
     sibling_detection_ids: siblings.map((s) => s.id),
     environment_context: {
@@ -180,21 +206,20 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
       corpus_fields_used: CORPUS_FIELDS,
       model: null,
       generated_at: new Date().toISOString(),
+      suggested_content_status: 'draft',
     },
-    // Deterministic default; only advances when sampling actually contributes.
     completeness: 0.5,
     warnings,
   };
 
-  // Optional LLM synthesis of the prose slots via MCP sampling (uses the
-  // client's model - no server-side API key). Nulls out gracefully, and a
-  // sampled value only REPLACES a deterministic one when it is non-empty, so a
-  // blank completion can never degrade the object below the deterministic floor.
+  // Optional LLM synthesis via MCP sampling (client's model - no server key).
+  // A sampled value only REPLACES a deterministic one when non-empty, so a blank
+  // completion can never degrade the object below the deterministic floor.
   if (useSampling) {
     const sampled = await requestSampling({
       messages: [{ role: 'user', content: { type: 'text', text: buildInvestigativePrompt(det, siblings) } }],
       systemPrompt:
-        'You are a senior detection engineer producing a machine-ingestable investigative-context object for an autonomous SOC. Output STRICT JSON only. Be specific and technical. Never fabricate environment-specific facts (baselines, asset criticality, tenant scope).',
+        'You are a senior detection engineer producing a machine-ingestable investigative-context object for an autonomous SOC. Output STRICT JSON only, matching the requested nested shape. Be specific and technical. Never fabricate environment-specific facts (baselines, asset criticality, tenant scope).',
       maxTokens: 1500,
       temperature: 0.2,
     });
@@ -203,18 +228,26 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
       const parsed = tryParseJson(sampled.content.text);
       if (parsed) {
         let appliedAny = false;
-        const tms = nonEmptyString(parsed.threat_model_statement);
-        if (tms) { ctx.threat_model_statement = tms; appliedAny = true; }
-        const wl = nonEmptyString(parsed.what_legitimate_looks_like);
-        if (wl) { ctx.what_legitimate_looks_like = wl; appliedAny = true; }
-        const rc = toStringArray(parsed.risk_criteria);
-        if (rc.length) { ctx.risk_criteria = rc; appliedAny = true; }
+        const tm = isRecord(parsed.threat_model) ? parsed.threat_model : {};
+        const ab = nonEmptyString(tm.adversary_behavior);
+        if (ab) { ctx.threat_model.adversary_behavior = ab; appliedAny = true; }
+        const wm = nonEmptyString(tm.why_it_matters);
+        if (wm) { ctx.threat_model.why_it_matters = wm; appliedAny = true; }
+        const lp = nonEmptyString(tm.legitimate_pattern);
+        if (lp) { ctx.threat_model.legitimate_pattern = lp; appliedAny = true; }
+
+        const rc = isRecord(parsed.risk_criteria) ? parsed.risk_criteria : {};
+        const mal = toStringArray(rc.malicious_indicators);
+        if (mal.length) { ctx.risk_criteria.malicious_indicators = mal; appliedAny = true; }
+        const ben = toStringArray(rc.benign_indicators);
+        if (ben.length) { ctx.risk_criteria.benign_indicators = ben; appliedAny = true; }
+        const req = toStringArray(rc.required_corroboration);
+        if (req.length) { ctx.risk_criteria.required_corroboration = req; appliedAny = true; }
+        const fpc = toStringArray(rc.false_positive_callouts);
+        if (fpc.length) { ctx.risk_criteria.false_positive_callouts = fpc; appliedAny = true; }
+
         const ig = toStringArray(parsed.investigation_goals);
         if (ig.length) { ctx.investigation_goals = ig; appliedAny = true; }
-        const ec = toStringArray(parsed.escalation_criteria);
-        if (ec.length) { ctx.escalation_criteria = ec; appliedAny = true; }
-        const hp = toStringArray(parsed.hunt_pivots);
-        if (hp.length) { ctx.hunt_pivots = hp; appliedAny = true; }
 
         if (appliedAny) {
           ctx.provenance.compiled_from = 'corpus+sampling';
@@ -231,10 +264,21 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
     }
   }
 
-  // Environment half is empty by construction - say so, loudly. This is the
-  // signal that the consuming SOC must supply org context before verdicts rely
-  // on this object. (completeness stays <= 0.7 because these slots are unfilled.)
+  // Environment half is empty by construction - say so, loudly.
   warnings.push('environment_context is empty: behavioral baselines, prior investigation outcomes, asset criticality, and tenant scope must be supplied by the consuming SOC before verdicts depend on this context');
+
+  // Suggested JudgmentDoc content_status (contract §5): 'reference' requires the
+  // full active/reference content set; otherwise 'draft'. Never 'active'.
+  const tmComplete =
+    !!ctx.threat_model.adversary_behavior.trim() &&
+    !!ctx.threat_model.why_it_matters.trim() &&
+    !!ctx.threat_model.legitimate_pattern.trim();
+  const rcComplete =
+    ctx.risk_criteria.malicious_indicators.length > 0 &&
+    ctx.risk_criteria.benign_indicators.length > 0 &&
+    ctx.risk_criteria.required_corroboration.length > 0;
+  const goalsComplete = ctx.investigation_goals.length > 0;
+  ctx.provenance.suggested_content_status = tmComplete && rcComplete && goalsComplete ? 'reference' : 'draft';
 
   return ctx;
 }
@@ -243,7 +287,7 @@ export const detectionContextTools: ToolDefinition[] = [
   defineTool({
     name: 'compile_detection_context',
     description:
-      'Compile a detection into a typed "detection-as-prompt" investigative-context object (threat-model statement, what-legitimate-looks-like, risk criteria, investigation goals, escalation criteria, hunt pivots) for downstream agentic-SOC context assembly. Draws the reusable half from the corpus + ATT&CK siblings; optionally synthesizes prose slots via MCP sampling with a deterministic fallback. Environment-specific slots (baselines, prior outcomes, asset criticality, tenant scope) are left typed-but-empty and surfaced via warnings + a completeness score.',
+      'Compile a detection into a typed "detection-as-prompt" investigative-context object for downstream agentic-SOC context assembly. Output is aligned to the cognitive-soc JudgmentDoc shape: threat_model{adversary_behavior, why_it_matters, legitimate_pattern, mitre_techniques}, risk_criteria{malicious_indicators, benign_indicators, required_corroboration, false_positive_callouts}, investigation_goals, enrichment_sources. Draws the reusable half from the corpus + ATT&CK siblings; optionally synthesizes the prose/rubric slots via MCP sampling with a deterministic fallback. Environment-specific slots are left typed-but-empty and surfaced via warnings + a completeness score. provenance.suggested_content_status indicates whether the output is corpus-complete (reference) or floor-only (draft).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -253,7 +297,7 @@ export const detectionContextTools: ToolDefinition[] = [
         },
         use_sampling: {
           type: 'boolean',
-          description: 'Synthesize prose slots via MCP sampling when the client supports it (default true). Falls back to deterministic fields otherwise.',
+          description: 'Synthesize the rubric/prose slots via MCP sampling when the client supports it (default true). Falls back to deterministic fields otherwise.',
         },
       },
       required: ['detection_id'],
