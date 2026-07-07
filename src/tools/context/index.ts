@@ -120,7 +120,7 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
     return { error: true, code: 'MISSING_REQUIRED_ARG', message: 'detection_id is required' };
   }
 
-  const det = getDetectionById(detectionId) as Record<string, unknown> | null;
+  const det = getDetectionById(detectionId) as unknown as Record<string, unknown> | null;
   if (!det) {
     return { error: true, code: 'NOT_FOUND', message: `Detection not found: ${detectionId}` };
   }
@@ -135,7 +135,7 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
   const seen = new Set<string>([detectionId]);
   const siblings: SiblingLite[] = [];
   for (const t of techniques.slice(0, 3)) {
-    const rules = (listByMitre(t, 25, 0) as Array<Record<string, unknown>>) ?? [];
+    const rules = (listByMitre(t, 25, 0) as unknown as Array<Record<string, unknown>>) ?? [];
     for (const r of rules) {
       const id = String(r.id ?? '');
       if (!id || seen.has(id)) continue;
