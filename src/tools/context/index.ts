@@ -55,13 +55,32 @@ export interface DetectionContext {
   warnings: string[];
 }
 
-const CORPUS_FIELDS = ['description', 'falsepositives', 'data_sources', 'mitre_ids', 'mitre_tactics', 'tags', 'references'];
+// Only fields the handler actually reads from each detection record. Kept honest
+// so provenance.corpus_fields_used is a truthful audit trail.
+const CORPUS_FIELDS = ['description', 'falsepositives', 'data_sources', 'mitre_ids', 'mitre_tactics'];
 
-function buildInvestigativePrompt(det: Record<string, unknown>, siblings: Array<Record<string, unknown>>): string {
-  const fp = (det.falsepositives as string[] | undefined) ?? [];
+// Light projection of a sibling detection - just what the prompt/ids need, so we
+// don't retain full records (raw_yaml, query) across the sampling await.
+interface SiblingLite {
+  id: string;
+  name: string;
+  description: string;
+  falsepositives: string[];
+}
+
+function toStringArray(v: unknown): string[] {
+  return Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+}
+
+function nonEmptyString(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
+
+function buildInvestigativePrompt(det: Record<string, unknown>, siblings: SiblingLite[]): string {
+  const fp = toStringArray(det.falsepositives);
   const siblingBlock = siblings
     .slice(0, 15)
-    .map((s) => `- ${String(s.name ?? '')}: ${String(s.description ?? '').slice(0, 240)}${(s.falsepositives as string[] | undefined)?.length ? ` [FP: ${(s.falsepositives as string[]).join('; ')}]` : ''}`)
+    .map((s) => `- ${s.name}: ${s.description.slice(0, 240)}${s.falsepositives.length ? ` [FP: ${s.falsepositives.join('; ')}]` : ''}`)
     .join('\n');
 
   return [
@@ -71,7 +90,7 @@ function buildInvestigativePrompt(det: Record<string, unknown>, siblings: Array<
     '',
     `DETECTION: ${String(det.name ?? '')}`,
     `SOURCE: ${String(det.source_type ?? '')}`,
-    `TECHNIQUES: ${((det.mitre_ids as string[] | undefined) ?? []).join(', ')}`,
+    `TECHNIQUES: ${toStringArray(det.mitre_ids).join(', ')}`,
     `DESCRIPTION: ${String(det.description ?? '')}`,
     fp.length ? `KNOWN FALSE POSITIVES: ${fp.join('; ')}` : '',
     `QUERY: ${String(det.query ?? '').slice(0, 1200)}`,
@@ -107,23 +126,29 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
   }
 
   const useSampling = args.use_sampling !== false;
-  const techniques = ((det.mitre_ids as string[] | undefined) ?? []).slice();
+  const techniques = toStringArray(det.mitre_ids);
 
   // Gather ATT&CK siblings - the accumulated investigation/FP wisdom for the
-  // same technique(s). Cap breadth so a broad technique (e.g. T1078.004 ~ 153
-  // rules) doesn't blow up the prompt.
+  // same technique(s). Project to a light shape immediately so full records
+  // (raw_yaml, query) don't linger across the sampling await. Cap breadth so a
+  // broad technique (e.g. T1078.004 ~ 153 rules) doesn't blow up the prompt.
   const seen = new Set<string>([detectionId]);
-  const siblingDetections: Array<Record<string, unknown>> = [];
+  const siblings: SiblingLite[] = [];
   for (const t of techniques.slice(0, 3)) {
     const rules = (listByMitre(t, 25, 0) as Array<Record<string, unknown>>) ?? [];
     for (const r of rules) {
       const id = String(r.id ?? '');
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      siblingDetections.push(r);
-      if (siblingDetections.length >= 40) break;
+      siblings.push({
+        id,
+        name: String(r.name ?? ''),
+        description: String(r.description ?? ''),
+        falsepositives: toStringArray(r.falsepositives),
+      });
+      if (siblings.length >= 40) break;
     }
-    if (siblingDetections.length >= 40) break;
+    if (siblings.length >= 40) break;
   }
 
   const warnings: string[] = [];
@@ -135,15 +160,15 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
     name: String(det.name ?? ''),
     // Deterministic floor - always populated from corpus fields.
     threat_model_statement: String(det.description ?? ''),
-    what_legitimate_looks_like: ((det.falsepositives as string[] | undefined) ?? []).join('; '),
+    what_legitimate_looks_like: toStringArray(det.falsepositives).join('; '),
     risk_criteria: [],
     investigation_goals: [],
     escalation_criteria: [],
     hunt_pivots: [],
-    data_requirements: ((det.data_sources as string[] | undefined) ?? []).slice(),
+    data_requirements: toStringArray(det.data_sources),
     mitre_techniques: techniques,
-    mitre_tactics: ((det.mitre_tactics as string[] | undefined) ?? []).slice(),
-    sibling_detection_ids: siblingDetections.map((s) => String(s.id ?? '')),
+    mitre_tactics: toStringArray(det.mitre_tactics),
+    sibling_detection_ids: siblings.map((s) => s.id),
     environment_context: {
       behavioral_baselines: [],
       prior_investigation_outcomes: [],
@@ -156,15 +181,18 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
       model: null,
       generated_at: new Date().toISOString(),
     },
+    // Deterministic default; only advances when sampling actually contributes.
     completeness: 0.5,
     warnings,
   };
 
   // Optional LLM synthesis of the prose slots via MCP sampling (uses the
-  // client's model - no server-side API key). Nulls out gracefully.
+  // client's model - no server-side API key). Nulls out gracefully, and a
+  // sampled value only REPLACES a deterministic one when it is non-empty, so a
+  // blank completion can never degrade the object below the deterministic floor.
   if (useSampling) {
     const sampled = await requestSampling({
-      messages: [{ role: 'user', content: { type: 'text', text: buildInvestigativePrompt(det, siblingDetections) } }],
+      messages: [{ role: 'user', content: { type: 'text', text: buildInvestigativePrompt(det, siblings) } }],
       systemPrompt:
         'You are a senior detection engineer producing a machine-ingestable investigative-context object for an autonomous SOC. Output STRICT JSON only. Be specific and technical. Never fabricate environment-specific facts (baselines, asset criticality, tenant scope).',
       maxTokens: 1500,
@@ -174,14 +202,27 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
     if (sampled && sampled.content && typeof sampled.content.text === 'string') {
       const parsed = tryParseJson(sampled.content.text);
       if (parsed) {
-        if (typeof parsed.threat_model_statement === 'string') ctx.threat_model_statement = parsed.threat_model_statement;
-        if (typeof parsed.what_legitimate_looks_like === 'string') ctx.what_legitimate_looks_like = parsed.what_legitimate_looks_like;
-        if (Array.isArray(parsed.risk_criteria)) ctx.risk_criteria = parsed.risk_criteria as string[];
-        if (Array.isArray(parsed.investigation_goals)) ctx.investigation_goals = parsed.investigation_goals as string[];
-        if (Array.isArray(parsed.escalation_criteria)) ctx.escalation_criteria = parsed.escalation_criteria as string[];
-        if (Array.isArray(parsed.hunt_pivots)) ctx.hunt_pivots = parsed.hunt_pivots as string[];
-        ctx.provenance.compiled_from = 'corpus+sampling';
-        ctx.provenance.model = sampled.model ?? null;
+        let appliedAny = false;
+        const tms = nonEmptyString(parsed.threat_model_statement);
+        if (tms) { ctx.threat_model_statement = tms; appliedAny = true; }
+        const wl = nonEmptyString(parsed.what_legitimate_looks_like);
+        if (wl) { ctx.what_legitimate_looks_like = wl; appliedAny = true; }
+        const rc = toStringArray(parsed.risk_criteria);
+        if (rc.length) { ctx.risk_criteria = rc; appliedAny = true; }
+        const ig = toStringArray(parsed.investigation_goals);
+        if (ig.length) { ctx.investigation_goals = ig; appliedAny = true; }
+        const ec = toStringArray(parsed.escalation_criteria);
+        if (ec.length) { ctx.escalation_criteria = ec; appliedAny = true; }
+        const hp = toStringArray(parsed.hunt_pivots);
+        if (hp.length) { ctx.hunt_pivots = hp; appliedAny = true; }
+
+        if (appliedAny) {
+          ctx.provenance.compiled_from = 'corpus+sampling';
+          ctx.provenance.model = sampled.model ?? null;
+          ctx.completeness = 0.7;
+        } else {
+          warnings.push('sampling returned JSON but no usable fields; kept deterministic values');
+        }
       } else {
         warnings.push('sampling returned non-JSON; kept deterministic (description + false-positive) fields only');
       }
@@ -192,12 +233,8 @@ async function compileHandler(args: Record<string, unknown>): Promise<DetectionC
 
   // Environment half is empty by construction - say so, loudly. This is the
   // signal that the consuming SOC must supply org context before verdicts rely
-  // on this object.
+  // on this object. (completeness stays <= 0.7 because these slots are unfilled.)
   warnings.push('environment_context is empty: behavioral baselines, prior investigation outcomes, asset criticality, and tenant scope must be supplied by the consuming SOC before verdicts depend on this context');
-
-  // completeness reflects both halves: env slots are always empty here, so it is
-  // capped well below 1.0 even with sampling.
-  ctx.completeness = ctx.provenance.compiled_from === 'corpus+sampling' ? 0.7 : 0.5;
 
   return ctx;
 }
