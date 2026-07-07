@@ -280,10 +280,10 @@ Optimized queries for:
 
 All subagents automatically inherit these MCPs:
 
-### security-detections (70+ tools)
+### security-detections (81 tools)
 - search, get_by_id, list_all
 - analyze_coverage, identify_gaps
-- get_patterns, add_learning
+- get_query_patterns, add_learning
 - log_decision, create_entity
 
 ### mitre-attack (30+ tools)

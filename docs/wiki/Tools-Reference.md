@@ -2,18 +2,18 @@
 
 ## Introduction
 
-The Security Detections MCP provides **69+ tools** organized by function for comprehensive detection engineering, coverage analysis, and knowledge management. Each tool includes detailed parameters, return values, and usage examples. Tools can be used individually or combined in powerful workflows.
+The Security Detections MCP provides **81 tools** organized by function for comprehensive detection engineering, coverage analysis, and knowledge management. Each tool includes detailed parameters, return values, and usage examples. Tools can be used individually or combined in powerful workflows.
 
 This reference covers:
 - **Detection Search & Retrieval** (8 tools) - Find and retrieve detection rules
 - **Story Tools** (4 tools) - Work with analytic stories
 - **Classification Filters** (11 tools) - Filter detections by various attributes
-- **Coverage & Analysis Tools** (7 tools) - Analyze MITRE ATT&CK coverage and gaps
+- **Coverage & Analysis Tools** (14 tools) - Analyze MITRE ATT&CK coverage, gaps, threat actors, procedures, and Navigator layers
 - **Engineering Intelligence Tools** (8 tools) - Get patterns, templates, and references
 - **Knowledge Graph Tools** (12 tools) - Build and query tribal knowledge
 - **Dynamic Table Tools** (6 tools) - Create and manage custom data storage
-- **Cache & Templates** (8 tools) - Save queries and reusable templates
-- **Autonomous Analysis** (3 tools) - Automated comprehensive analysis
+- **Cache & Templates** (9 tools) - Save queries, reusable templates, and rebuild the index
+- **Autonomous Analysis** (5 tools) - Automated comprehensive analysis and LLM sampling
 - **Comparison Tools** (4 tools) - Compare detections across sources
 
 ---
@@ -563,7 +563,7 @@ This reference covers:
 
 ---
 
-### COVERAGE & ANALYSIS TOOLS (7 tools)
+### COVERAGE & ANALYSIS TOOLS (14 tools)
 
 #### analyze_coverage
 **Description:** Get comprehensive coverage analysis with stats by tactic, top covered techniques, and weak spots. Returns summary data, not raw detections. Use this instead of listing detections and processing manually.
@@ -716,6 +716,101 @@ This reference covers:
 **Related Tools:** `list_by_mitre`, `suggest_detections`, `get_coverage_summary`
 
 **Notes:** Fastest coverage check. Use to quickly verify if a technique has coverage.
+
+---
+
+#### analyze_actor_coverage
+**Description:** Analyze detection coverage against a specific threat actor. Shows which of the actor's known MITRE ATT&CK techniques have detections. Requires STIX data (`ATTACK_STIX_PATH` env var).
+
+**Input Parameters:**
+- `actor_name` (string, required) - Threat actor name or alias (e.g., "APT29", "Cozy Bear", "FIN7")
+- `source_type` (enum, optional) - Filter detections to a specific source
+- `include_navigator_layer` (boolean, optional) - Include ATT&CK Navigator layer JSON in response (default: false)
+
+**Output:** Per-technique coverage breakdown for the actor with covered/uncovered techniques
+
+**Related Tools:** `compare_actor_coverage`, `get_actor_profile`, `list_actors`
+
+---
+
+#### list_actors
+**Description:** List all known MITRE ATT&CK threat actors with aliases and technique counts. Requires STIX data (`ATTACK_STIX_PATH` env var).
+
+**Input Parameters:**
+- `search` (string, optional) - Search by actor name or alias
+- `limit` (number, optional) - Maximum results to return (default: 50)
+
+**Output:** Array of actors with aliases and technique counts
+
+**Related Tools:** `analyze_actor_coverage`, `get_actor_profile`
+
+---
+
+#### compare_actor_coverage
+**Description:** Compare detection coverage across multiple threat actors. Shows shared technique gaps and unique risks per actor. Requires STIX data.
+
+**Input Parameters:**
+- `actor_names` (array, required) - List of threat actor names to compare (2-5 actors)
+- `source_type` (enum, optional) - Filter detections to a specific source
+
+**Output:** Cross-actor comparison with shared gaps and per-actor unique risks
+
+**Related Tools:** `analyze_actor_coverage`, `get_actor_profile`
+
+---
+
+#### get_actor_profile
+**Description:** Get full threat actor dossier: description, aliases, known techniques, software employed, and detection coverage status. Requires STIX data.
+
+**Input Parameters:**
+- `actor_name` (string, required) - Threat actor name or alias
+
+**Output:** Complete actor profile with coverage status per technique
+
+**Related Tools:** `analyze_actor_coverage`, `list_actors`
+
+---
+
+#### generate_navigator_layer
+**Description:** Generate a MITRE ATT&CK Navigator layer JSON from detection coverage. Returns valid Navigator JSON ready for import into the ATT&CK Navigator web app.
+
+**Input Parameters:**
+- `name` (string, required) - Layer name (e.g., "Sigma Coverage Q1 2026")
+- `description` (string, optional) - Layer description
+- `source_type` (enum, optional) - Filter to a specific source (all if omitted)
+- `tactic` (enum, optional) - Filter by MITRE tactic
+- `severity` (enum, optional) - Filter by minimum severity
+
+**Output:** ATT&CK Navigator layer JSON
+
+**Related Tools:** `analyze_coverage`, `analyze_actor_coverage`
+
+---
+
+#### analyze_procedure_coverage
+**Description:** Analyze procedure-level coverage for a MITRE technique. Goes beyond "we cover T1059.001" to show WHICH specific behaviors/procedures your detections catch.
+
+**Input Parameters:**
+- `technique_id` (string, required) - MITRE technique ID (e.g., "T1059.001")
+- `source_type` (enum, optional) - Filter to a specific source (all if omitted)
+- `include_query_snippets` (boolean, optional) - Include query snippets showing what each detection checks (default: false)
+
+**Output:** Behavioral procedure clusters for the technique with per-procedure detection counts
+
+**Related Tools:** `compare_procedure_coverage`, `analyze_coverage`, `suggest_detections`
+
+---
+
+#### compare_procedure_coverage
+**Description:** Compare procedure-level detection coverage across sources for a technique. Shows which source catches which specific behaviors.
+
+**Input Parameters:**
+- `technique_id` (string, required) - MITRE technique ID to compare across sources
+- `sources` (array, optional) - Sources to compare (default: all available)
+
+**Output:** Per-source procedure coverage matrix for the technique
+
+**Related Tools:** `analyze_procedure_coverage`, `compare_sources`
 
 ---
 
@@ -1409,7 +1504,7 @@ This reference covers:
 
 ---
 
-### CACHE & TEMPLATES (8 tools)
+### CACHE & TEMPLATES (9 tools)
 
 #### save_query
 **Description:** Save a query result for quick retrieval later. Useful for caching frequently needed data.
@@ -1480,6 +1575,21 @@ This reference covers:
 **Related Tools:** `save_query`, `get_saved_query`, `list_templates`
 
 **Notes:** Use to discover available cached queries.
+
+---
+
+#### rebuild_index
+**Description:** Force re-index all detections and stories from configured paths. WARNING: destructive — deletes the current index before rebuilding.
+
+**Input Parameters:**
+- `confirm` (boolean, optional) - Set to true to confirm the rebuild (required for safety, default: false)
+- `skip_elicitation` (boolean, optional) - Skip the elicitation confirmation prompt for programmatic use (default: false)
+
+**Output:** Re-index summary with new detection counts
+
+**Related Tools:** `get_stats`
+
+**Notes:** Uses MCP elicitation to confirm with the user when the client supports it.
 
 ---
 
@@ -1599,7 +1709,7 @@ This reference covers:
 
 ---
 
-### AUTONOMOUS ANALYSIS (3 tools)
+### AUTONOMOUS ANALYSIS (5 tools)
 
 #### auto_analyze_coverage
 **Description:** Automatically analyze detection coverage, identify gaps across threat profiles, and store findings for future reference.
@@ -1681,6 +1791,34 @@ This reference covers:
 **Related Tools:** `compare_sources`, `auto_gap_report`, `analyze_coverage`
 
 **Notes:** Automated comprehensive comparison. Stores results and logs decision reasoning. Use to understand source strengths/weaknesses.
+
+---
+
+#### llm_enhanced_analysis
+**Description:** Request LLM-enhanced analysis of security detection data using MCP sampling. Unlike the `auto_*` tools, this asks the client's LLM for expert reasoning about coverage, gaps, comparisons, or recommendations.
+
+**Input Parameters:**
+- `analysis_type` (enum, required) - "coverage", "gaps", "comparison", or "recommendation"
+- `threat_profile` (string, optional) - Threat profile context (e.g., "ransomware", "apt")
+- `techniques` (array, optional) - Specific techniques to analyze
+- `custom_context` (string, optional) - Additional context for the analysis
+
+**Output:** LLM-generated analysis, or structured data fallback if the client does not support sampling
+
+**Related Tools:** `check_sampling_status`, `auto_analyze_coverage`
+
+**Notes:** Requires the MCP client to support the sampling capability.
+
+---
+
+#### check_sampling_status
+**Description:** Check if MCP sampling is available for LLM-enhanced analysis. Use before calling `llm_enhanced_analysis`.
+
+**Input Parameters:** None
+
+**Output:** Sampling capability status
+
+**Related Tools:** `llm_enhanced_analysis`
 
 ---
 
@@ -1822,46 +1960,20 @@ This reference covers:
 
 ## MCP Resources
 
-The Security Detections MCP provides read-only resources for quick access to common data:
+The Security Detections MCP provides 10 read-only resources (all `application/json`) for quick access to common data:
 
-### detection://stats
-**Description:** Overall detection statistics including counts by source, severity, MITRE tactic, detection type, and story categories.
-
-**Usage:** Access via MCP resource fetch. Returns JSON with:
-- Total detection counts
-- Counts by source (sigma, splunk_escu, elastic, kql)
-- Counts by severity
-- Counts by MITRE tactic
-- Counts by detection type
-- Story counts and categories
-
----
-
-### detection://coverage-summary
-**Description:** Lightweight coverage summary with tactic percentages. Updated automatically.
-
-**Usage:** Access via MCP resource fetch. Returns JSON with coverage percentages per MITRE tactic.
-
----
-
-### detection://gaps/ransomware
-**Description:** Pre-computed ransomware detection gaps with prioritized recommendations.
-
-**Usage:** Access via MCP resource fetch. Returns JSON with gap analysis for ransomware threat profile.
-
----
-
-### detection://gaps/apt
-**Description:** Pre-computed APT detection gaps with prioritized recommendations.
-
-**Usage:** Access via MCP resource fetch. Returns JSON with gap analysis for APT threat profile.
-
----
-
-### detection://top-techniques
-**Description:** Top covered MITRE techniques across all detections.
-
-**Usage:** Access via MCP resource fetch. Returns JSON with most-covered techniques.
+| Resource URI | Description |
+|--------------|-------------|
+| `detection://stats` | Detection index statistics: counts by source, severity, and coverage metrics |
+| `detection://coverage` | MITRE ATT&CK tactic coverage summary with percentages and technique counts |
+| `detection://gaps/ransomware` | Ransomware technique coverage gaps with prioritized recommendations |
+| `detection://gaps/apt` | APT technique coverage gaps with prioritized recommendations |
+| `detection://top-covered` | Best-covered MITRE ATT&CK techniques with detection counts |
+| `detection://sources/comparison` | Detection counts compared across sources |
+| `detection://navigator/layer` | Full ATT&CK Navigator layer JSON with coverage heatmap |
+| `knowledge://graph/summary` | Knowledge graph overview: entities, relations, decisions, learnings |
+| `knowledge://decisions/recent` | Recent analytical decisions captured in the knowledge graph |
+| `knowledge://learnings/all` | All stored learnings and insights from the knowledge graph |
 
 ---
 
@@ -1899,6 +2011,13 @@ The Security Detections MCP provides read-only resources for quick access to com
 | `get_coverage_summary` | Coverage & Analysis | Quick coverage summary |
 | `get_top_gaps` | Coverage & Analysis | Top 5 gaps (quick) |
 | `get_technique_count` | Coverage & Analysis | Technique detection count |
+| `analyze_actor_coverage` | Coverage & Analysis | Coverage against a threat actor |
+| `list_actors` | Coverage & Analysis | List known threat actors |
+| `compare_actor_coverage` | Coverage & Analysis | Compare coverage across actors |
+| `get_actor_profile` | Coverage & Analysis | Full threat actor dossier |
+| `generate_navigator_layer` | Coverage & Analysis | Export ATT&CK Navigator layer |
+| `analyze_procedure_coverage` | Coverage & Analysis | Procedure-level coverage for a technique |
+| `compare_procedure_coverage` | Coverage & Analysis | Procedure coverage across sources |
 | `get_query_patterns` | Engineering Intelligence | Get query patterns for technique |
 | `get_field_reference` | Engineering Intelligence | Get data model fields |
 | `get_macro_reference` | Engineering Intelligence | Get macro patterns |
@@ -1928,6 +2047,7 @@ The Security Detections MCP provides read-only resources for quick access to com
 | `save_query` | Cache & Templates | Save query result |
 | `get_saved_query` | Cache & Templates | Retrieve saved query |
 | `list_saved_queries` | Cache & Templates | List saved queries |
+| `rebuild_index` | Cache & Templates | Force re-index from configured paths |
 | `save_template` | Cache & Templates | Save query template |
 | `run_template` | Cache & Templates | Execute template |
 | `list_templates` | Cache & Templates | List templates |
@@ -1936,6 +2056,8 @@ The Security Detections MCP provides read-only resources for quick access to com
 | `auto_analyze_coverage` | Autonomous Analysis | Automated coverage analysis |
 | `auto_gap_report` | Autonomous Analysis | Generate gap report |
 | `auto_compare_sources` | Autonomous Analysis | Compare sources automatically |
+| `llm_enhanced_analysis` | Autonomous Analysis | LLM-enhanced analysis via MCP sampling |
+| `check_sampling_status` | Autonomous Analysis | Check MCP sampling availability |
 | `compare_sources` | Comparison Tools | Compare sources for topic |
 | `count_by_source` | Comparison Tools | Count detections by source |
 | `get_detection_list` | Comparison Tools | Get lightweight detection list |
@@ -1945,8 +2067,8 @@ The Security Detections MCP provides read-only resources for quick access to com
 
 ## Notes
 
-- **Tool Count:** This reference documents 69 tools across 10 categories
-- **Source Types:** Most tools support filtering by source: "sigma", "splunk_escu", "elastic", "kql"
+- **Tool Count:** This reference documents 81 tools across 10 categories
+- **Source Types:** Most tools support filtering by source: "sigma", "splunk_escu", "elastic", "kql", "sublime", "crowdstrike_cql"
 - **Pagination:** List tools support `limit` and `offset` for pagination
 - **Lightweight Tools:** Use `get_coverage_summary`, `get_top_gaps`, `get_technique_count`, `get_detection_list` for quick checks
 - **Comprehensive Tools:** Use `analyze_coverage`, `auto_analyze_coverage`, `auto_gap_report` for detailed analysis
@@ -1956,4 +2078,4 @@ The Security Detections MCP provides read-only resources for quick access to com
 
 ---
 
-*Last Updated: January 2025*
+*Last Updated: July 2026*
