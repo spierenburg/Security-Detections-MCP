@@ -285,7 +285,7 @@ function rowToDetection(row: Record<string, unknown>): Detection {
     name: row.name as string,
     description: row.description as string || '',
     query: row.query as string || '',
-    source_type: row.source_type as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
+    source_type: row.source_type as 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql' | 'jamf_protect',
     mitre_ids: JSON.parse(row.mitre_ids as string || '[]'),
     logsource_category: row.logsource_category as string | null,
     logsource_product: row.logsource_product as string | null,
@@ -354,7 +354,7 @@ export function listDetections(limit: number = 100, offset: number = 0): Detecti
   return rows.map(rowToDetection);
 }
 
-export function listBySource(sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql', limit: number = 100, offset: number = 0): Detection[] {
+export function listBySource(sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql' | 'jamf_protect', limit: number = 100, offset: number = 0): Detection[] {
   const database = initDb();
   
   const stmt = database.prepare('SELECT * FROM detections WHERE source_type = ? ORDER BY name LIMIT ? OFFSET ?');
@@ -553,6 +553,8 @@ export function getStats(): IndexStats {
   const elastic = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'elastic'").get() as { count: number }).count;
   const kql = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'kql'").get() as { count: number }).count;
   const sublime = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'sublime'").get() as { count: number }).count;
+  const crowdstrikeCql = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'crowdstrike_cql'").get() as { count: number }).count;
+  const jamfProtect = (database.prepare("SELECT COUNT(*) as count FROM detections WHERE source_type = 'jamf_protect'").get() as { count: number }).count;
 
   // Count by severity
   const severityRows = database.prepare(`
@@ -644,6 +646,8 @@ export function getStats(): IndexStats {
     elastic,
     kql,
     sublime,
+    crowdstrike_cql: crowdstrikeCql,
+    jamf_protect: jamfProtect,
     by_severity,
     by_logsource_product,
     mitre_coverage,
@@ -1366,7 +1370,7 @@ export function searchDetectionList(query: string, limit: number = 500): Detecti
 
 // Get name+ID list filtered by source
 export function listDetectionsBySourceLight(
-  sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql',
+  sourceType: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql' | 'jamf_protect',
   nameFilter?: string,
   limit: number = 500
 ): DetectionListItem[] {
@@ -1460,7 +1464,7 @@ export function compareDetectionsBySource(topic: string, limit: number = 100): S
 // Get detection names and IDs matching a pattern, grouped by source
 export function getDetectionNamesByPattern(
   pattern: string,
-  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql'
+  sourceType?: 'sigma' | 'splunk_escu' | 'elastic' | 'kql' | 'sublime' | 'crowdstrike_cql' | 'jamf_protect'
 ): { source: string; detections: Array<{ name: string; id: string }> }[] {
   const database = initDb();
   
@@ -1503,7 +1507,15 @@ export function countDetectionsBySource(topic: string): Record<string, number> {
   
   const rows = stmt.all(topic) as { source_type: string; count: number }[];
   
-  const result: Record<string, number> = { sigma: 0, splunk_escu: 0, elastic: 0, kql: 0 };
+  const result: Record<string, number> = {
+    sigma: 0,
+    splunk_escu: 0,
+    elastic: 0,
+    kql: 0,
+    sublime: 0,
+    crowdstrike_cql: 0,
+    jamf_protect: 0,
+  };
   for (const row of rows) {
     result[row.source_type] = row.count;
   }

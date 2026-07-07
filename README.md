@@ -154,6 +154,7 @@ Configure env vars to point at your detection repos:
 | `KQL_PATHS` | KQL hunting query directories |
 | `SUBLIME_PATHS` | Sublime Security rule directories |
 | `CQL_HUB_PATHS` | CQL Hub (CrowdStrike) query directories |
+| `JAMF_PROTECT_PATHS` | Jamf Protect custom analytic detection directories (macOS) |
 | `STORY_PATHS` | Splunk analytic story directories (optional) |
 | `ATTACK_STIX_PATH` | Path to `enterprise-attack.json` for threat actor data (optional) |
 
@@ -183,7 +184,7 @@ git clone --depth 1 https://github.com/ByteRay-Labs/Query-Hub.git cql-hub
 | `search(query, limit)` | Full-text search across all detection fields |
 | `get_by_id(id)` | Get a single detection by ID |
 | `list_all(limit, offset)` | Paginated list of all detections |
-| `list_by_source(source_type)` | Filter by source (`sigma`, `splunk_escu`, `elastic`, `kql`, `sublime`, `crowdstrike_cql`) |
+| `list_by_source(source_type)` | Filter by source (`sigma`, `splunk_escu`, `elastic`, `kql`, `sublime`, `crowdstrike_cql`, `jamf_protect`) |
 | `get_stats()` | Index statistics |
 | `rebuild_index()` | Force re-index from configured paths |
 

@@ -13,6 +13,8 @@ export interface IndexStats {
   elastic: number;
   kql: number;
   sublime: number;
+  crowdstrike_cql: number;
+  jamf_protect: number;
   by_severity: Record<string, number>;
   by_logsource_product: Record<string, number>;
   mitre_coverage: number;
