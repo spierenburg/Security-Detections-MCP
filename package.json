@@ -69,5 +69,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "overrides": {
+    "body-parser": "^2.3.0",
+    "qs": "^6.16.0"
+  }
 }
