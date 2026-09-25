@@ -104,18 +104,24 @@ export function AccountForm({ displayName, hasClaudeKey, hasOpenaiKey, hasOpenro
     const apiField = keyMap[keyField];
     if (!apiField) return;
 
-    const res = await fetch('/api/account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [apiField]: null }),
-    });
+    try {
+      const res = await fetch('/api/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [apiField]: null }),
+      });
 
-    if (res.ok) {
-      setMessage('Key removed.');
-      if (keyField.includes('claude')) setClaudeSet(false);
-      if (keyField.includes('openai')) setOpenaiSet(false);
-      if (keyField.includes('openrouter')) setOpenrouterSet(false);
-      router.refresh();
+      if (res.ok) {
+        setMessage('Key removed.');
+        if (keyField.includes('claude')) setClaudeSet(false);
+        if (keyField.includes('openai')) setOpenaiSet(false);
+        if (keyField.includes('openrouter')) setOpenrouterSet(false);
+        router.refresh();
+      } else {
+        setMessage('Error: failed to remove key.');
+      }
+    } catch {
+      setMessage('Error: network error while removing key.');
     }
   }
 
