@@ -65,7 +65,9 @@
   },
   "overrides": {
     "ajv": "^8.18.0",
-    "path-to-regexp": "^8.4.0"
+    "body-parser": "^2.3.0",
+    "path-to-regexp": "^8.4.0",
+    "qs": "^6.16.0"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -73,9 +75,5 @@
   "files": [
     "dist",
     "README.md"
-  ],
-  "overrides": {
-    "body-parser": "^2.3.0",
-    "qs": "^6.16.0"
-  }
+  ]
 }
