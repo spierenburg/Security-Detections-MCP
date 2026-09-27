@@ -44,6 +44,7 @@
   "overrides": {
     "body-parser": "^2.3.0",
     "express-rate-limit": "^8.5.1",
-    "qs": "^6.16.0"
+    "qs": "^6.16.0",
+    "langsmith": "^0.6.3"
   }
 }

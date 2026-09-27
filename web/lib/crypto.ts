@@ -19,7 +19,7 @@ function getKey(): Buffer {
 export function encrypt(plaintext: string): string {
   const key = getKey();
   const iv = randomBytes(IV_LENGTH);
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
 
   let encrypted = cipher.update(plaintext, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -51,7 +51,11 @@ export function decrypt(encryptedText: string): string {
     return encryptedText;
   }
 
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  // authTagLength is enforced by Node itself (throws in setAuthTag on a
+  // mismatched length) rather than relying solely on the manual length
+  // check above, so the guarantee survives even if that check is ever
+  // weakened by a future edit.
+  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
   decipher.setAuthTag(authTag);
 
   let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
