@@ -5,12 +5,13 @@
  * CRITICAL: NEVER auto-merge - always create as DRAFT for human review.
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { getConfig } from '../config.js';
+import { isValidTechniqueId } from '../tools/technique-id.js';
 import type { PipelineState, PR, Detection } from '../state/types.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export async function prStagerNode(state: PipelineState): Promise<Partial<PipelineState>> {
   console.log('[PR Stager] Preparing to stage PRs...');
@@ -41,7 +42,8 @@ export async function prStagerNode(state: PipelineState): Promise<Partial<Pipeli
   }
   
   // Only stage validated detections
-  const validatedDetections = state.detections.filter(d => d.status === 'validated');
+  // technique_id is LLM-derived: only well-formed IDs go into commit/PR text. `name` is not sanitized (markdown/@mention in the PR body).
+  const validatedDetections = state.detections.filter(d => d.status === 'validated' && isValidTechniqueId(d.technique_id));
   
   if (validatedDetections.length === 0) {
     console.log('[PR Stager] No validated detections to stage');
@@ -66,21 +68,17 @@ export async function prStagerNode(state: PipelineState): Promise<Partial<Pipeli
     // Stage security_content PR
     console.log('[PR Stager] Creating security_content branch and PR...');
     
-    const detectionFiles = validatedDetections.map(d => d.file_path).join(' ');
+    const detectionFiles = validatedDetections.map(d => d.file_path);
     const techniques = validatedDetections.map(d => d.technique_id).join(', ');
     
-    // Create branch, add files, commit, push
-    const securityContentCommands = [
-      `cd ${cfg.securityContentPath}`,
-      `git checkout develop`,
-      `git pull origin develop`,
-      `git checkout -b ${branchName}`,
-      `git add ${detectionFiles}`,
-      `git commit -m "Add automated detections for ${techniques}"`,
-      `git push -u origin ${branchName}`,
-    ].join(' && ');
-
-    await execAsync(securityContentCommands, { shell: '/bin/bash' });
+    // Create branch, add files, commit, push. argv only, no shell: file_path and IDs are never parsed by bash.
+    const git = (...args: string[]) => execFileAsync('git', args, { cwd: cfg.securityContentPath });
+    await git('checkout', 'develop');
+    await git('pull', 'origin', 'develop');
+    await git('checkout', '-b', branchName);
+    await git('add', '--', ...detectionFiles);
+    await git('commit', '-m', `Add automated detections for ${techniques}`);
+    await git('push', '-u', 'origin', branchName);
 
     // Create DRAFT PR using gh CLI
     const prTitle = `[Autonomous] Add detections for ${techniques}`;
@@ -102,10 +100,11 @@ ${validatedDetections.map(d => `- \`${d.name}\` (${d.technique_id})`).join('\n')
 ---
 *This PR was created by the Autonomous Detection Platform. Human review is required before merging.*`;
 
-    const prCommand = `cd ${cfg.securityContentPath} && gh pr create --draft --title "${prTitle}" --body "${prBody.replace(/"/g, '\\"')}"`;
-
-    
-    const { stdout: prUrl } = await execAsync(prCommand, { shell: '/bin/bash' });
+    const { stdout: prUrl } = await execFileAsync(
+      'gh',
+      ['pr', 'create', '--draft', '--title', prTitle, '--body', prBody],
+      { cwd: cfg.securityContentPath },
+    );
     
     prs.push({
       repo: 'splunk/security_content',
