@@ -9,10 +9,11 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { getConfig } from '../config.js';
 import type { PipelineState, Technique } from '../state/types.js';
 import { z } from 'zod';
+import { TECHNIQUE_ID_PATTERN, isValidTechniqueId } from '../tools/technique-id.js';
 
 // Zod schema for structured output
 const TechniqueSchema = z.object({
-  id: z.string().describe('MITRE ATT&CK technique ID (e.g., T1003.001)'),
+  id: z.string().regex(TECHNIQUE_ID_PATTERN).describe('MITRE ATT&CK technique ID (e.g., T1003.001)'),
   name: z.string().describe('Technique name'),
   tactic: z.string().describe('MITRE tactic'),
   confidence: z.number().min(0).max(1).describe('Confidence score 0.0-1.0'),
@@ -97,8 +98,13 @@ export async function ctiAnalystNode(state: PipelineState): Promise<Partial<Pipe
   
   try {
     const response = await structuredModel.invoke(prompt);
-    const techniques: Technique[] = response.techniques || [];
-    
+    // The schema regex constrains the model, but the ID reaches fs paths downstream: re-check.
+    const extracted: Technique[] = response.techniques || [];
+    const techniques = extracted.filter(t => isValidTechniqueId(t.id));
+    if (techniques.length < extracted.length) {
+      console.warn(`[CTI Analyst] Dropped ${extracted.length - techniques.length} technique(s) with malformed IDs`);
+    }
+
     console.log(`[CTI Analyst] Extracted ${techniques.length} techniques:`);
     techniques.forEach(t => console.log(`  - ${t.id}: ${t.name} (confidence: ${t.confidence})`));
 
