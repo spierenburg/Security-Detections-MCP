@@ -10,6 +10,7 @@ import { join, dirname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { getMCPClient, splunkExportDump } from '../tools/mcp-client.js';
 import { getConfig } from '../config.js';
+import { isValidTechniqueId, resolveUnder } from '../tools/technique-id.js';
 import type { PipelineState, Detection } from '../state/types.js';
 
 // Standard sourcetypes for attack data
@@ -184,8 +185,12 @@ export async function dataDumperNode(state: PipelineState): Promise<Partial<Pipe
     try {
       console.log(`[Data Dumper] Processing: ${detection.name} (${detection.technique_id})`);
       
-      // Create directory structure
-      const techniqueDir = join(getConfig().attackDataPath, 'datasets', 'attack_techniques', detection.technique_id, 'autonomous_agent');
+      if (!isValidTechniqueId(detection.technique_id)) {
+        throw new Error(`Refusing to export: invalid technique_id ${JSON.stringify(detection.technique_id)}`);
+      }
+
+      // Create directory structure (confined to the attack_data checkout)
+      const techniqueDir = resolveUnder(getConfig().attackDataPath, 'datasets', 'attack_techniques', detection.technique_id, 'autonomous_agent');
       
       // Export data from Splunk
       const exports = await exportAttackData(detection, techniqueDir, '-2h');
