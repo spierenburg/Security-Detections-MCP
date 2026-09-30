@@ -4,6 +4,7 @@ import { setConfig, loadConfig, resetConfig } from '../../config.js';
 // Mock child_process so we don't actually run git/gh
 vi.mock('child_process', () => ({
   exec: vi.fn(),
+  execFile: vi.fn(),
 }));
 
 vi.mock('util', async (importOriginal) => {
