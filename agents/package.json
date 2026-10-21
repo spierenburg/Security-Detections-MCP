@@ -39,7 +39,7 @@
     "node": ">=20.0.0"
   },
   "optionalDependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1"
+    "@modelcontextprotocol/sdk": "^1.32.1"
   },
   "overrides": {
     "body-parser": "^2.3.0",
